@@ -27,6 +27,9 @@ async function api(path, options = {}) {
     headers: { 'x-token': token, 'content-type': 'application/json', ...options.headers },
   });
   const data = await res.json().catch(() => null);
+  if (res.status === 401) {
+    throw new ApiError('访问令牌无效。服务重启后令牌会变更，请用终端中打印的新 URL 重新打开本页面。', null);
+  }
   if (!res.ok) {
     throw new ApiError(data?.error?.message ?? `HTTP ${res.status}`, data?.error?.detail);
   }
