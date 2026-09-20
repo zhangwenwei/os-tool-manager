@@ -141,6 +141,7 @@ test('POST action 破坏性操作带确认时执行（SEC-10）', async () => {
   const router = await primed(fakeAdapter());
   const res = await call(router, '/api/adapters/fake/actions/uninstall', POST({ itemId: 'pkg-a', confirm: true }));
   assert.equal(res.statusCode, 200);
+  assert.equal(res.body.ok, true);
 });
 
 test('POST action 破坏性操作缺确认时以 400 拒绝（SEC-10）', async () => {
@@ -175,6 +176,7 @@ test('POST action 清单未取得时以 409 拒绝（SEC-09）', async () => {
   const router = createRouter({ adapters: [fakeAdapter()], token: TOKEN, origin: ORIGIN });
   const res = await call(router, '/api/adapters/fake/actions/update', POST({ itemId: 'pkg-a' }));
   assert.equal(res.statusCode, 409);
+  assert.equal(res.body.error.code, 'STALE_ITEM');
 });
 
 test('POST action 同一生态并发时以 409 BUSY 拒绝（FR-19）', async () => {
@@ -212,6 +214,50 @@ test('POST action 失败时也解除排他（FR-19）', async () => {
   const router = await primed(adapter);
   const first = await call(router, '/api/adapters/fake/actions/update', POST({ itemId: 'pkg-a' }));
   assert.equal(first.statusCode, 500);
+  assert.equal(first.body.error.code, 'INTERNAL');
   const second = await call(router, '/api/adapters/fake/actions/update', POST({ itemId: 'pkg-a' }));
   assert.equal(second.statusCode, 500);
+  assert.equal(second.body.error.code, 'INTERNAL');
+});
+
+test('POST action 超时时返回 504（NFR-08）', async () => {
+  const err = new Error('命令超时（600000ms）：fake');
+  err.code = 'TIMEOUT';
+  const adapter = fakeAdapter();
+  adapter.actions.update.run = async () => { throw err; };
+  const router = await primed(adapter);
+  const res = await call(router, '/api/adapters/fake/actions/update', POST({ itemId: 'pkg-a' }));
+  assert.equal(res.statusCode, 504);
+  assert.equal(res.body.error.code, 'TIMEOUT');
+  assert.equal(res.body.error.detail, '命令超时（600000ms）：fake');
+});
+
+test('POST action 失败时 detail 含命令输出（FR-21）', async () => {
+  const err = new Error('boom');
+  err.detail = '假命令失败\nstderr 的内容';
+  const adapter = fakeAdapter();
+  adapter.actions.update.run = async () => { throw err; };
+  const router = await primed(adapter);
+  const res = await call(router, '/api/adapters/fake/actions/update', POST({ itemId: 'pkg-a' }));
+  assert.equal(res.statusCode, 500);
+  assert.equal(res.body.error.detail, '假命令失败\nstderr 的内容');
+});
+
+test('POST action 传给 run 的是条目对象而非 ID', async () => {
+  let received;
+  const adapter = fakeAdapter();
+  adapter.actions.update.run = async (item) => {
+    received = item;
+    return { ok: true, exitCode: 0, signal: null, stdout: '', stderr: '', truncated: false };
+  };
+  const router = await primed(adapter);
+  await call(router, '/api/adapters/fake/actions/update', POST({ itemId: 'pkg-a' }));
+  assert.equal(received.name, 'pkg-a');
+  assert.equal(received.current, '1.0.0');
+});
+
+test('响应带 no-store 缓存头', async () => {
+  const router = createRouter({ adapters: [fakeAdapter()], token: TOKEN, origin: ORIGIN });
+  const res = await call(router, '/api/adapters/fake/items');
+  assert.equal(res.headers['cache-control'], 'no-store');
 });
