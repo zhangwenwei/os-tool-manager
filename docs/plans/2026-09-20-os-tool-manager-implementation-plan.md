@@ -1087,7 +1087,7 @@ function readBody(req, limit = 64 * 1024) {
 cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && npm test
 ```
 
-Expected: PASS，全 85 tests（config 27 + exec 20 + security 19 + routes 19）
+Expected: PASS，全 103 tests（config 27 + exec 20 + security 25 + routes 24 + routes.integration 7）
 
 - [ ] **Step 7: 提交**
 
@@ -1233,7 +1233,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { getConfig } from './config.js';
 import { generateToken } from './security.js';
-import { createRouter } from './routes.js';
+import { createRouter, fail } from './routes.js';
 import { createStatic } from './static.js';
 import { adapters } from './adapters/registry.js';
 
@@ -1257,8 +1257,7 @@ const server = createServer(async (req, res) => {
     }
   } catch (e) {
     if (res.headersSent) return;
-    res.writeHead(500, { 'content-type': 'application/json; charset=utf-8' });
-    res.end(JSON.stringify({ error: { code: 'INTERNAL', message: '服务器内部错误。', detail: e.message } }));
+    fail(res, 500, 'INTERNAL', '服务器内部错误。', e.message);
   }
 });
 
@@ -2336,7 +2335,7 @@ git commit -m "feat: 前端（FR-04～FR-21、SEC-13）"
 cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && npm test
 ```
 
-Expected: PASS，全 124 tests（config 27 + exec 20 + security 19 + routes 19 + static 6 + homebrew 14 + npm 10 + pip 9）
+Expected: PASS，全 142 tests（config 27 + exec 20 + security 25 + routes 24 + routes.integration 7 + static 6 + homebrew 14 + npm 10 + pip 9）
 
 - [ ] **Step 2: 依要件书 9.3 节执行手动验证**
 

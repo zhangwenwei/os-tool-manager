@@ -311,6 +311,8 @@ os-tool-manager/
 }
 ```
 
+> `run(item)` 只得依赖 `item` 的 `id` 与 `name`。传入的条目来自最近一次 `list()` 的快照，`current` 与 `latest` 可能已过时，以其拼装命令会指向错误的对象。
+
 ### 7.2 条目 Item
 
 ```js
@@ -377,12 +379,16 @@ os-tool-manager/
 
 | HTTP | `code` | 发生条件 | 要件 |
 |---|---|---|---|
+| 400 | `BAD_BODY` | 请求体无法解析 | — |
 | 400 | `UNKNOWN_ACTION` | 操作种类未声明 | SEC-08 |
 | 400 | `CONFIRM_REQUIRED` | 破坏性操作缺少确认标记 | SEC-10 |
 | 401 | `INVALID_TOKEN` | 令牌缺失或不一致 | SEC-06 |
 | 403 | `BAD_ORIGIN` | `Origin` 缺失或不一致 | SEC-07 |
 | 409 | `STALE_ITEM` | 条目 ID 不在最近一次清单中 | SEC-09 |
 | 409 | `BUSY` | 该生态已有操作执行中 | FR-19 |
+| 404 | `UNKNOWN_ADAPTER` | 路径指定的生态不存在 | — |
+| 404 | `NOT_FOUND` | 未知的端点 | — |
+| 413 | `PAYLOAD_TOO_LARGE` | 请求体超过上限 | — |
 | 500 | `INTERNAL` | 未捕获的异常 | NFR-13 |
 | 504 | `TIMEOUT` | 子进程超时 | NFR-07、NFR-08 |
 

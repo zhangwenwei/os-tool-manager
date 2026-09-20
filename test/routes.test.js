@@ -261,3 +261,9 @@ test('响应带 no-store 缓存头', async () => {
   const res = await call(router, '/api/adapters/fake/items');
   assert.equal(res.headers['cache-control'], 'no-store');
 });
+
+test('适配器声明缺失时抛出而非静默从清单消失', async () => {
+  const broken = { id: 'broken', label: 'Broken', detect: async () => true };
+  const router = createRouter({ adapters: [broken], token: TOKEN, origin: ORIGIN });
+  await assert.rejects(() => call(router, '/api/adapters'));
+});
