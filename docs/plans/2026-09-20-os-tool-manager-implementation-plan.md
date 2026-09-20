@@ -87,10 +87,12 @@ formula 与 cask 的包名可能重复，而 Item.id 须在生态内唯一（7.2
   },
   "scripts": {
     "start": "node server/index.js",
-    "test": "node --test test/"
+    "test": "node --test 'test/**/*.js'"
   }
 }
 ```
+
+> 测试脚本使用 glob 而非 `node --test test/`：本机 Node v25.9.0 会把目录参数当作 CJS 入口模块去 require，报 `Cannot find module '.../test'`。单文件形式（`node --test test/xxx.test.js`）正常。
 
 - [ ] **Step 2: 写失败的测试**
 
