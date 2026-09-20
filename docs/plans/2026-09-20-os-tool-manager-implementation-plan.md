@@ -87,10 +87,12 @@ formula 与 cask 的包名可能重复，而 Item.id 须在生态内唯一（7.2
   },
   "scripts": {
     "start": "node server/index.js",
-    "test": "node --test test/"
+    "test": "node --test 'test/**/*.js'"
   }
 }
 ```
+
+> 测试脚本使用 glob 而非 `node --test test/`：本机 Node v25.9.0 会把目录参数当作 CJS 入口模块去 require，报 `Cannot find module '.../test'`。单文件形式（`node --test test/xxx.test.js`）正常。
 
 - [ ] **Step 2: 写失败的测试**
 
@@ -145,6 +147,8 @@ cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && npm test
 ```
 
 Expected: FAIL，`Cannot find module '.../server/config.js'`
+
+> **实装后的修订（代码评审对应）**：本节代码为初版。实际实装在评审后追加了数值项的整数与取值域校验、布尔项的严格解析、`.env` 值的引号剥离、无效值警告、`loadConfig` 的 ENOENT 与其他错误的区分，以及记忆化的 `getConfig()`。最终形态见 `server/config.js`（commit `fae0790`）。后续任务一律使用 `getConfig()` 取配置，不再各自 `loadConfig`。
 
 - [ ] **Step 4: 实装 `server/config.js`**
 
@@ -314,6 +318,8 @@ cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && node --test tes
 ```
 
 Expected: FAIL，`Cannot find module '.../server/exec.js'`
+
+> **实装后的修订（代码评审 Critical 对应）**：本节代码为初版，存在超时机制失效的缺陷 —— 仅终止直接子进程时，孙进程继续持有管道导致 `close` 永不触发、Promise 永不 settle。最终形态见 `server/exec.js`（commit `8fc031d`）：子进程改为 `detached` 并终止整个进程组、追加宽限定时器、输出改为流式截断、`spawn` 错误透传真实 errno、校验 options、截断处对齐 UTF-8 边界、结果追加 `signal` 字段。测试由 8 件增至 20 件。
 
 - [ ] **Step 3: 实装 `server/exec.js`**
 
@@ -724,6 +730,14 @@ export function fail(res, status, code, message, detail = null) {
   send(res, status, { error: { code, message, detail } });
 }
 
+function safeDecode(segment) {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return null;
+  }
+}
+
 function publicActions(adapter) {
   const out = {};
   for (const [key, action] of Object.entries(adapter.actions)) {
@@ -838,7 +852,7 @@ Expected: FAIL，4 tests failing（404 NOT_FOUND 而非期待值）
 ```js
     const itemsMatch = pathname.match(/^\/api\/adapters\/([^/]+)\/items$/);
     if (req.method === 'GET' && itemsMatch) {
-      const adapter = byId(decodeURIComponent(itemsMatch[1]));
+      const adapter = byId(safeDecode(itemsMatch[1]));
       if (!adapter) return fail(res, 404, 'UNKNOWN_ADAPTER', '未知的生态。');
       try {
         const items = await adapter.list();
@@ -1028,10 +1042,10 @@ function readBody(req, limit = 64 * 1024) {
       const originErr = checkOrigin(req, origin);
       if (originErr) return fail(res, originErr.status, originErr.code, originErr.message);
 
-      const adapter = byId(decodeURIComponent(actionMatch[1]));
+      const adapter = byId(safeDecode(actionMatch[1]));
       if (!adapter) return fail(res, 404, 'UNKNOWN_ADAPTER', '未知的生态。');
 
-      const actionKey = decodeURIComponent(actionMatch[2]);
+      const actionKey = safeDecode(actionMatch[2]);
       const actionErr = checkAction(adapter, actionKey);
       if (actionErr) return fail(res, actionErr.status, actionErr.code, actionErr.message);
       const action = adapter.actions[actionKey];
@@ -1073,7 +1087,7 @@ function readBody(req, limit = 64 * 1024) {
 cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && npm test
 ```
 
-Expected: PASS，全 54 tests（config 8 + exec 8 + security 19 + routes 19）
+Expected: PASS，全 103 tests（config 27 + exec 20 + security 25 + routes 24 + routes.integration 7）
 
 - [ ] **Step 7: 提交**
 
@@ -1124,6 +1138,10 @@ test('拒绝未知扩展名', () => {
   assert.equal(resolveStaticPath('/secret.env'), null);
   assert.equal(resolveStaticPath('/noext'), null);
 });
+
+test('拒绝非法的百分号编码', () => {
+  assert.equal(resolveStaticPath('/%ZZ.js'), null);
+});
 ```
 
 - [ ] **Step 2: 运行测试确认失败**
@@ -1147,7 +1165,12 @@ const TYPES = {
 };
 
 export function resolveStaticPath(pathname) {
-  const rel = pathname === '/' ? 'index.html' : decodeURIComponent(pathname).slice(1);
+  let rel;
+  try {
+    rel = pathname === '/' ? 'index.html' : decodeURIComponent(pathname).slice(1);
+  } catch {
+    return null;
+  }
   if (rel.includes('/') || rel.includes('\\') || rel.includes('..')) return null;
   const dot = rel.lastIndexOf('.');
   if (dot === -1) return null;
@@ -1180,7 +1203,7 @@ export function createStatic(rootDir) {
 cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && node --test test/static.test.js
 ```
 
-Expected: PASS，5 tests
+Expected: PASS，6 tests
 
 - [ ] **Step 5: 创建空的适配器注册表**
 
@@ -1208,16 +1231,16 @@ import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { loadConfig } from './config.js';
+import { getConfig } from './config.js';
 import { generateToken } from './security.js';
-import { createRouter } from './routes.js';
+import { createRouter, fail } from './routes.js';
 import { createStatic } from './static.js';
 import { adapters } from './adapters/registry.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
 
-const config = loadConfig(join(root, '.env'));
+const config = getConfig();
 const token = generateToken();
 const origin = `http://127.0.0.1:${config.PORT}`;
 
@@ -1234,8 +1257,7 @@ const server = createServer(async (req, res) => {
     }
   } catch (e) {
     if (res.headersSent) return;
-    res.writeHead(500, { 'content-type': 'application/json; charset=utf-8' });
-    res.end(JSON.stringify({ error: { code: 'INTERNAL', message: '服务器内部错误。', detail: e.message } }));
+    fail(res, 500, 'INTERNAL', '服务器内部错误。', e.message);
   }
 });
 
@@ -1409,15 +1431,16 @@ Expected: FAIL，`Cannot find module '.../server/adapters/homebrew.js'`
 
 ```js
 import { run, ExecError } from '../exec.js';
-import { loadConfig } from '../config.js';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { getConfig } from '../config.js';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const config = loadConfig(join(root, '.env'));
-
-const listOpts = () => ({ timeoutMs: config.LIST_TIMEOUT_MS, maxBytes: config.MAX_OUTPUT_BYTES });
-const actionOpts = () => ({ timeoutMs: config.ACTION_TIMEOUT_MS, maxBytes: config.MAX_OUTPUT_BYTES });
+const listOpts = () => {
+  const c = getConfig();
+  return { timeoutMs: c.LIST_TIMEOUT_MS, maxBytes: c.MAX_OUTPUT_BYTES };
+};
+const actionOpts = () => {
+  const c = getConfig();
+  return { timeoutMs: c.ACTION_TIMEOUT_MS, maxBytes: c.MAX_OUTPUT_BYTES };
+};
 
 export function parseVersions(stdout) {
   const out = [];
@@ -1642,15 +1665,16 @@ Expected: FAIL，`Cannot find module '.../server/adapters/npm.js'`
 
 ```js
 import { run } from '../exec.js';
-import { loadConfig } from '../config.js';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { getConfig } from '../config.js';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const config = loadConfig(join(root, '.env'));
-
-const listOpts = () => ({ timeoutMs: config.LIST_TIMEOUT_MS, maxBytes: config.MAX_OUTPUT_BYTES });
-const actionOpts = () => ({ timeoutMs: config.ACTION_TIMEOUT_MS, maxBytes: config.MAX_OUTPUT_BYTES });
+const listOpts = () => {
+  const c = getConfig();
+  return { timeoutMs: c.LIST_TIMEOUT_MS, maxBytes: c.MAX_OUTPUT_BYTES };
+};
+const actionOpts = () => {
+  const c = getConfig();
+  return { timeoutMs: c.ACTION_TIMEOUT_MS, maxBytes: c.MAX_OUTPUT_BYTES };
+};
 
 export function parseGlobalList(stdout) {
   let data;
@@ -1860,15 +1884,16 @@ Expected: FAIL，`Cannot find module '.../server/adapters/pip.js'`
 
 ```js
 import { run } from '../exec.js';
-import { loadConfig } from '../config.js';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { getConfig } from '../config.js';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const config = loadConfig(join(root, '.env'));
-
-const listOpts = () => ({ timeoutMs: config.LIST_TIMEOUT_MS, maxBytes: config.MAX_OUTPUT_BYTES });
-const actionOpts = () => ({ timeoutMs: config.ACTION_TIMEOUT_MS, maxBytes: config.MAX_OUTPUT_BYTES });
+const listOpts = () => {
+  const c = getConfig();
+  return { timeoutMs: c.LIST_TIMEOUT_MS, maxBytes: c.MAX_OUTPUT_BYTES };
+};
+const actionOpts = () => {
+  const c = getConfig();
+  return { timeoutMs: c.ACTION_TIMEOUT_MS, maxBytes: c.MAX_OUTPUT_BYTES };
+};
 
 function parseJsonArray(stdout) {
   try {
@@ -2310,7 +2335,7 @@ git commit -m "feat: 前端（FR-04～FR-21、SEC-13）"
 cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && npm test
 ```
 
-Expected: PASS，全 92 tests（config 8 + exec 8 + security 19 + routes 19 + static 5 + homebrew 14 + npm 10 + pip 9）
+Expected: PASS，全 142 tests（config 27 + exec 20 + security 25 + routes 24 + routes.integration 7 + static 6 + homebrew 14 + npm 10 + pip 9）
 
 - [ ] **Step 2: 依要件书 9.3 节执行手动验证**
 
