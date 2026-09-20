@@ -319,6 +319,8 @@ cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && node --test tes
 
 Expected: FAIL，`Cannot find module '.../server/exec.js'`
 
+> **实装后的修订（代码评审 Critical 对应）**：本节代码为初版，存在超时机制失效的缺陷 —— 仅终止直接子进程时，孙进程继续持有管道导致 `close` 永不触发、Promise 永不 settle。最终形态见 `server/exec.js`（commit `8fc031d`）：子进程改为 `detached` 并终止整个进程组、追加宽限定时器、输出改为流式截断、`spawn` 错误透传真实 errno、校验 options、截断处对齐 UTF-8 边界、结果追加 `signal` 字段。测试由 8 件增至 20 件。
+
 - [ ] **Step 3: 实装 `server/exec.js`**
 
 ```js
@@ -1077,7 +1079,7 @@ function readBody(req, limit = 64 * 1024) {
 cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && npm test
 ```
 
-Expected: PASS，全 54 tests（config 8 + exec 8 + security 19 + routes 19）
+Expected: PASS，全 85 tests（config 27 + exec 20 + security 19 + routes 19）
 
 - [ ] **Step 7: 提交**
 
@@ -2317,7 +2319,7 @@ git commit -m "feat: 前端（FR-04～FR-21、SEC-13）"
 cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && npm test
 ```
 
-Expected: PASS，全 92 tests（config 8 + exec 8 + security 19 + routes 19 + static 5 + homebrew 14 + npm 10 + pip 9）
+Expected: PASS，全 123 tests（config 27 + exec 20 + security 19 + routes 19 + static 5 + homebrew 14 + npm 10 + pip 9）
 
 - [ ] **Step 2: 依要件书 9.3 节执行手动验证**
 
