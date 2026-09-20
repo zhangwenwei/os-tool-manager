@@ -1,83 +1,113 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseVersions, parseOutdated, buildItems, commandArgs } from '../server/adapters/homebrew.js';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+import { parseInstalled, commandArgs, AdapterError } from '../server/adapters/homebrew.js';
 
-test('parseVersions 解析名称与版本', () => {
-  assert.deepEqual(parseVersions('ripgrep 14.1.0\nhtop 3.3.0\n'), [
-    { name: 'ripgrep', current: '14.1.0' },
-    { name: 'htop', current: '3.3.0' },
-  ]);
+const here = dirname(fileURLToPath(import.meta.url));
+const fixture = readFileSync(join(here, 'fixtures', 'brew-installed.json'), 'utf8');
+const items = parseInstalled(fixture);
+const byId = (id) => items.find((i) => i.id === id);
+
+test('formula 的当前版本取 linked_keg 而非清单中的最后一项', () => {
+  assert.equal(byId('formula:openssl@3').current, '3.6.3');
+  assert.equal(byId('formula:ca-certificates').current, '2026-08-13');
 });
 
-test('parseVersions 多版本时取最后一个', () => {
-  assert.deepEqual(parseVersions('openssl@3 3.4.0 3.5.1\n'), [{ name: 'openssl@3', current: '3.5.1' }]);
+test('keg-only 包的 linked_keg 为 null 时回落到已装版本', () => {
+  assert.equal(byId('formula:readline').current, '8.3.3');
 });
 
-test('parseVersions 忽略空行', () => {
-  assert.deepEqual(parseVersions('\n\nhtop 3.3.0\n\n'), [{ name: 'htop', current: '3.3.0' }]);
+test('formula 过时时 latest 为 stable 版本', () => {
+  const i = byId('formula:openssl@3');
+  assert.equal(i.status, 'outdated');
+  assert.equal(i.latest, '3.6.4');
 });
 
-test('parseVersions 空输入返回空数组', () => {
-  assert.deepEqual(parseVersions(''), []);
+test('formula 最新时 latest 等于 current', () => {
+  const i = byId('formula:ca-certificates');
+  assert.equal(i.status, 'ok');
+  assert.equal(i.latest, '2026-08-13');
 });
 
-test('parseOutdated 分别解析 formula 与 cask', () => {
+test('cask 依已装版本与上游版本比较判定，不采信 outdated 字段', () => {
+  const i = byId('cask:iterm2');
+  assert.equal(i.current, '3.6.10');
+  assert.equal(i.latest, '3.7.2');
+  assert.equal(i.status, 'outdated');
+});
+
+test('cask 的显示名取 name 的首项', () => {
+  assert.equal(byId('cask:iterm2').name, 'iTerm2');
+  assert.equal(byId('cask:rectangle').name, 'Rectangle');
+});
+
+test('全部条目的 active 恒为 null', () => {
+  assert.ok(items.every((i) => i.active === null));
+});
+
+test('全部条目具备更新与卸载两种操作', () => {
+  assert.ok(items.every((i) => i.actions.length === 2 && i.actions.includes('update') && i.actions.includes('uninstall')));
+});
+
+test('formula 与 cask 的 ID 前缀不同', () => {
+  const ids = items.map((i) => i.id);
+  assert.ok(ids.includes('formula:openssl@3'));
+  assert.ok(ids.includes('cask:iterm2'));
+  assert.equal(new Set(ids).size, ids.length);
+});
+
+test('parseInstalled 对同名的 formula 与 cask 产生不同 ID', () => {
   const json = JSON.stringify({
-    formulae: [{ name: 'node', current_version: '25.10.0' }],
-    casks: [{ name: 'rectangle', current_version: '0.90' }],
+    formulae: [{ name: 'x', versions: { stable: '1' }, installed: [{ version: '1' }], linked_keg: '1', outdated: false }],
+    casks: [{ token: 'x', name: ['X'], installed: '2', version: '2' }],
   });
-  const m = parseOutdated(json);
-  assert.equal(m.get('formula:node'), '25.10.0');
-  assert.equal(m.get('cask:rectangle'), '0.90');
+  assert.deepEqual(parseInstalled(json).map((i) => i.id), ['formula:x', 'cask:x']);
 });
 
-test('parseOutdated 输出非 JSON 时返回空 Map', () => {
-  assert.equal(parseOutdated('not json').size, 0);
+test('parseInstalled 采用 full_name 以支持第三方 tap', () => {
+  const json = JSON.stringify({
+    formulae: [{ name: 'node', full_name: 'someone/tap/node', versions: { stable: '2' }, installed: [{ version: '1' }], linked_keg: '1', outdated: true }],
+  });
+  const i = parseInstalled(json)[0];
+  assert.equal(i.id, 'formula:someone/tap/node');
+  assert.equal(i.name, 'someone/tap/node');
 });
 
-test('parseOutdated 缺少字段时不抛出', () => {
-  assert.equal(parseOutdated('{}').size, 0);
+test('版本无法取得时状态为 unknown 且 latest 为 null', () => {
+  const json = JSON.stringify({ casks: [{ token: 'broken', name: ['Broken'], installed: null, version: null }] });
+  const i = parseInstalled(json)[0];
+  assert.equal(i.status, 'unknown');
+  assert.equal(i.latest, null);
 });
 
-test('buildItems 过时条目状态为 outdated', () => {
-  const items = buildItems(
-    [{ name: 'node', current: '25.9.0' }],
-    [],
-    new Map([['formula:node', '25.10.0']])
-  );
-  assert.equal(items[0].id, 'formula:node');
-  assert.equal(items[0].name, 'node');
-  assert.equal(items[0].status, 'outdated');
-  assert.equal(items[0].latest, '25.10.0');
-  assert.deepEqual(items[0].actions, ['update', 'uninstall']);
+test('parseInstalled 空对象返回空数组', () => {
+  assert.deepEqual(parseInstalled('{}'), []);
 });
 
-test('buildItems 最新条目状态为 ok 且 latest 等于 current', () => {
-  const items = buildItems([{ name: 'htop', current: '3.3.0' }], [], new Map());
-  assert.equal(items[0].status, 'ok');
-  assert.equal(items[0].latest, '3.3.0');
+test('parseInstalled 非 JSON 时抛出 AdapterError', () => {
+  assert.throws(() => parseInstalled('not json'), (e) => e instanceof AdapterError && e.code === 'PARSE_FAILED');
 });
 
-test('buildItems cask 使用 cask 前缀', () => {
-  const items = buildItems([], [{ name: 'iterm2', current: '3.5.0' }], new Map());
-  assert.equal(items[0].id, 'cask:iterm2');
+test('commandArgs 生成带终止符的参数', () => {
+  assert.deepEqual(commandArgs('upgrade', 'formula:node'), ['upgrade', '--formula', '--', 'node']);
+  assert.deepEqual(commandArgs('uninstall', 'cask:iterm2'), ['uninstall', '--cask', '--', 'iterm2']);
 });
 
-test('buildItems 的 active 恒为 null（FR-08 无适用）', () => {
-  const items = buildItems([{ name: 'htop', current: '3.3.0' }], [], new Map());
-  assert.equal(items[0].active, null);
+test('commandArgs 拒绝无前缀的 ID', () => {
+  assert.throws(() => commandArgs('upgrade', 'node'), (e) => e.code === 'BAD_ITEM_ID');
 });
 
-test('buildItems formula 与 cask 同名时 ID 仍唯一', () => {
-  const items = buildItems([{ name: 'x', current: '1' }], [{ name: 'x', current: '2' }], new Map());
-  assert.deepEqual(items.map((i) => i.id), ['formula:x', 'cask:x']);
+test('commandArgs 拒绝未知前缀', () => {
+  assert.throws(() => commandArgs('upgrade', 'bogus:x'), (e) => e.code === 'BAD_ITEM_ID');
 });
 
-test('commandArgs 依 ID 前缀生成参数', () => {
-  assert.deepEqual(commandArgs('upgrade', 'formula:node'), ['upgrade', '--formula', 'node']);
-  assert.deepEqual(commandArgs('uninstall', 'cask:iterm2'), ['uninstall', '--cask', 'iterm2']);
+test('commandArgs 拒绝空的包名', () => {
+  assert.throws(() => commandArgs('uninstall', 'formula:'), (e) => e.code === 'BAD_ITEM_ID');
 });
 
-test('commandArgs 未知前缀时抛出', () => {
-  assert.throws(() => commandArgs('upgrade', 'bogus:x'));
+test('commandArgs 拒绝非字符串的 ID', () => {
+  assert.throws(() => commandArgs('uninstall', null), (e) => e.code === 'BAD_ITEM_ID');
+  assert.throws(() => commandArgs('uninstall', undefined), (e) => e.code === 'BAD_ITEM_ID');
 });
