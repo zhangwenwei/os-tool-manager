@@ -59,6 +59,16 @@ export function parseInstalled(stdout) {
   ];
 }
 
+export function buildList(result) {
+  if (!result.ok) {
+    throw new AdapterError('LIST_FAILED', result.stderr.trim() || `brew info 以退出码 ${result.exitCode} 结束。`);
+  }
+  if (result.truncated) {
+    throw new AdapterError('LIST_TRUNCATED', 'brew info 的输出超过上限，无法解析。');
+  }
+  return parseInstalled(result.stdout);
+}
+
 export function commandArgs(subcommand, itemId) {
   if (typeof itemId !== 'string') {
     throw new AdapterError('BAD_ITEM_ID', `条目 ID 不是字符串：${itemId}`);
@@ -86,14 +96,7 @@ export default {
   },
 
   async list() {
-    const r = await run('brew', ['info', '--json=v2', '--installed'], listOpts());
-    if (!r.ok) {
-      throw new AdapterError('LIST_FAILED', r.stderr.trim() || `brew info 以退出码 ${r.exitCode} 结束。`);
-    }
-    if (r.truncated) {
-      throw new AdapterError('LIST_TRUNCATED', 'brew info 的输出超过上限，无法解析。');
-    }
-    return parseInstalled(r.stdout);
+    return buildList(await run('brew', ['info', '--json=v2', '--installed'], listOpts()));
   },
 
   actions: {

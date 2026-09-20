@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { parseInstalled, commandArgs, AdapterError } from '../server/adapters/homebrew.js';
+import { parseInstalled, buildList, commandArgs, AdapterError } from '../server/adapters/homebrew.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixture = readFileSync(join(here, 'fixtures', 'brew-installed.json'), 'utf8');
@@ -110,4 +110,33 @@ test('commandArgs 拒绝空的包名', () => {
 test('commandArgs 拒绝非字符串的 ID', () => {
   assert.throws(() => commandArgs('uninstall', null), (e) => e.code === 'BAD_ITEM_ID');
   assert.throws(() => commandArgs('uninstall', undefined), (e) => e.code === 'BAD_ITEM_ID');
+});
+
+test('linked_keg 指向较旧版本时以它为当前版本', () => {
+  const json = JSON.stringify({
+    formulae: [{
+      name: 'pinned', versions: { stable: '3.0' },
+      installed: [{ version: '1.0' }, { version: '2.0' }],
+      linked_keg: '1.0', outdated: true,
+    }],
+  });
+  assert.equal(parseInstalled(json)[0].current, '1.0');
+});
+
+test('buildList 在命令失败时抛出而非返回空清单', () => {
+  assert.throws(
+    () => buildList({ ok: false, exitCode: 1, stderr: 'brew 挂了', stdout: '', truncated: false }),
+    (e) => e instanceof AdapterError && e.code === 'LIST_FAILED'
+  );
+});
+
+test('buildList 在输出被截断时抛出', () => {
+  assert.throws(
+    () => buildList({ ok: true, exitCode: 0, stderr: '', stdout: '{}', truncated: true }),
+    (e) => e.code === 'LIST_TRUNCATED'
+  );
+});
+
+test('buildList 正常时返回条目', () => {
+  assert.deepEqual(buildList({ ok: true, exitCode: 0, stderr: '', stdout: '{}', truncated: false }), []);
 });
