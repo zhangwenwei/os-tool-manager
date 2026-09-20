@@ -8,6 +8,8 @@
 
 **Tech Stack:** Node.js 20+（本机 v25.9.0）、ESM、零运行时依赖、`node:http`、`node:test`、原生 HTML/CSS/JS。
 
+> 本文档中的命令均以仓库根目录为工作目录。原始记录中的绝对路径已在公开前替换。
+
 **要件定义书:** `docs/specs/2026-09-20-os-tool-manager-requirements.md` v3.0
 
 ---
@@ -143,7 +145,7 @@ test('buildConfig 忽略未知键', () => {
 - [ ] **Step 3: 运行测试确认失败**
 
 ```bash
-cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && npm test
+npm test
 ```
 
 Expected: FAIL，`Cannot find module '.../server/config.js'`
@@ -204,7 +206,7 @@ export function loadConfig(path) {
 - [ ] **Step 5: 运行测试确认通过**
 
 ```bash
-cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && npm test
+npm test
 ```
 
 Expected: PASS，8 tests
@@ -314,7 +316,7 @@ test('run 输出超限时标示 truncated', async () => {
 - [ ] **Step 2: 运行测试确认失败**
 
 ```bash
-cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && node --test test/exec.test.js
+node --test test/exec.test.js
 ```
 
 Expected: FAIL，`Cannot find module '.../server/exec.js'`
@@ -398,7 +400,7 @@ export function run(command, args, { timeoutMs, maxBytes }) {
 - [ ] **Step 4: 运行测试确认通过**
 
 ```bash
-cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && node --test test/exec.test.js
+node --test test/exec.test.js
 ```
 
 Expected: PASS，8 tests
@@ -532,7 +534,7 @@ test('checkConfirm 确认标记非 true 时拒绝', () => {
 - [ ] **Step 2: 运行测试确认失败**
 
 ```bash
-cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && node --test test/security.test.js
+node --test test/security.test.js
 ```
 
 Expected: FAIL，`Cannot find module '.../server/security.js'`
@@ -592,7 +594,7 @@ export function checkConfirm(action, body) {
 - [ ] **Step 4: 运行测试确认通过**
 
 ```bash
-cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && node --test test/security.test.js
+node --test test/security.test.js
 ```
 
 Expected: PASS，19 tests
@@ -711,7 +713,7 @@ test('未知端点返回 404', async () => {
 - [ ] **Step 2: 运行测试确认失败**
 
 ```bash
-cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && node --test test/routes.test.js
+node --test test/routes.test.js
 ```
 
 Expected: FAIL，`Cannot find module '.../server/routes.js'`
@@ -781,7 +783,7 @@ export { send };
 - [ ] **Step 4: 运行测试确认通过**
 
 ```bash
-cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && node --test test/routes.test.js
+node --test test/routes.test.js
 ```
 
 Expected: PASS，5 tests
@@ -842,7 +844,7 @@ test('GET items 其他异常时返回 500', async () => {
 - [ ] **Step 2: 运行测试确认失败**
 
 ```bash
-cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && node --test test/routes.test.js
+node --test test/routes.test.js
 ```
 
 Expected: FAIL，4 tests failing（404 NOT_FOUND 而非期待值）
@@ -868,7 +870,7 @@ Expected: FAIL，4 tests failing（404 NOT_FOUND 而非期待值）
 - [ ] **Step 4: 运行测试确认通过**
 
 ```bash
-cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && node --test test/routes.test.js
+node --test test/routes.test.js
 ```
 
 Expected: PASS，9 tests
@@ -993,7 +995,7 @@ test('POST action 失败时也解除排他（FR-19）', async () => {
 - [ ] **Step 2: 运行测试确认失败**
 
 ```bash
-cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && node --test test/routes.test.js
+node --test test/routes.test.js
 ```
 
 Expected: FAIL，10 tests failing
@@ -1084,7 +1086,7 @@ function readBody(req, limit = 64 * 1024) {
 - [ ] **Step 6: 运行全部测试确认通过**
 
 ```bash
-cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && npm test
+npm test
 ```
 
 Expected: PASS，全 103 tests（config 27 + exec 20 + security 25 + routes 24 + routes.integration 7）
@@ -1147,7 +1149,7 @@ test('拒绝非法的百分号编码', () => {
 - [ ] **Step 2: 运行测试确认失败**
 
 ```bash
-cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && node --test test/static.test.js
+node --test test/static.test.js
 ```
 
 Expected: FAIL，`Cannot find module '.../server/static.js'`
@@ -1200,7 +1202,7 @@ export function createStatic(rootDir) {
 - [ ] **Step 4: 运行测试确认通过**
 
 ```bash
-cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && node --test test/static.test.js
+node --test test/static.test.js
 ```
 
 Expected: PASS，6 tests
@@ -1286,7 +1288,7 @@ server.listen(config.PORT, '127.0.0.1', () => {
 - [ ] **Step 8: 手动确认启动**
 
 ```bash
-cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && npm start
+npm start
 ```
 
 Expected: 打印 `os-tool-manager 已启动` 与含 token 的 URL，浏览器打开占位页面。确认后 `Ctrl+C` 停止。
@@ -1296,7 +1298,7 @@ Expected: 打印 `os-tool-manager 已启动` 与含 token 的 URL，浏览器打
 在另一个终端保持 `npm start` 运行的状态下再次执行：
 
 ```bash
-cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && npm start
+npm start
 ```
 
 Expected: 打印「端口 7788 已被占用。」与变更方法，退出码 1。
@@ -1422,7 +1424,7 @@ test('commandArgs 未知前缀时抛出', () => {
 - [ ] **Step 2: 运行测试确认失败**
 
 ```bash
-cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && node --test test/homebrew.test.js
+node --test test/homebrew.test.js
 ```
 
 Expected: FAIL，`Cannot find module '.../server/adapters/homebrew.js'`
@@ -1539,7 +1541,7 @@ export default {
 - [ ] **Step 4: 运行测试确认通过**
 
 ```bash
-cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && node --test test/homebrew.test.js
+node --test test/homebrew.test.js
 ```
 
 Expected: PASS，14 tests
@@ -1557,7 +1559,7 @@ export const adapters = [homebrew];
 - [ ] **Step 6: 手动确认真实数据**
 
 ```bash
-cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && node -e "import('./server/adapters/homebrew.js').then(async m => { const a = m.default; console.log('detect:', await a.detect()); const items = await a.list(); console.log('件数:', items.length); console.log('过时:', items.filter(i => i.status === 'outdated').length); console.log(items.slice(0, 3)); })"
+node -e "import('./server/adapters/homebrew.js').then(async m => { const a = m.default; console.log('detect:', await a.detect()); const items = await a.list(); console.log('件数:', items.length); console.log('过时:', items.filter(i => i.status === 'outdated').length); console.log(items.slice(0, 3)); })"
 ```
 
 Expected: `detect: true`，件数 43 前后，过时 26 前后（实机调查时点的值）
@@ -1656,7 +1658,7 @@ test('buildItems 对 npm 自身不提供卸载', () => {
 - [ ] **Step 2: 运行测试确认失败**
 
 ```bash
-cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && node --test test/npm.test.js
+node --test test/npm.test.js
 ```
 
 Expected: FAIL，`Cannot find module '.../server/adapters/npm.js'`
@@ -1760,7 +1762,7 @@ export default {
 - [ ] **Step 4: 运行测试确认通过**
 
 ```bash
-cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && node --test test/npm.test.js
+node --test test/npm.test.js
 ```
 
 Expected: PASS，10 tests
@@ -1779,7 +1781,7 @@ export const adapters = [homebrew, npm];
 - [ ] **Step 6: 手动确认真实数据**
 
 ```bash
-cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && node -e "import('./server/adapters/npm.js').then(async m => { const a = m.default; console.log('detect:', await a.detect()); console.log(await a.list()); })"
+node -e "import('./server/adapters/npm.js').then(async m => { const a = m.default; console.log('detect:', await a.detect()); console.log(await a.list()); })"
 ```
 
 Expected: `detect: true`，包含 `npm`、`@deepseek-ai/dsh`、`@fission-ai/openspec` 三件
@@ -1875,7 +1877,7 @@ test('buildItems 按名称排序', () => {
 - [ ] **Step 2: 运行测试确认失败**
 
 ```bash
-cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && node --test test/pip.test.js
+node --test test/pip.test.js
 ```
 
 Expected: FAIL，`Cannot find module '.../server/adapters/pip.js'`
@@ -1974,7 +1976,7 @@ export default {
 - [ ] **Step 4: 运行测试确认通过**
 
 ```bash
-cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && node --test test/pip.test.js
+node --test test/pip.test.js
 ```
 
 Expected: PASS，9 tests
@@ -1994,7 +1996,7 @@ export const adapters = [homebrew, npm, pip];
 - [ ] **Step 6: 实测 `--outdated` 的所要时间**
 
 ```bash
-cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && time python3 -m pip list --user --outdated --format=json > /dev/null
+time python3 -m pip list --user --outdated --format=json > /dev/null
 ```
 
 Expected: 输出所要时间。若超过 55 秒，则在 `.env` 中设置 `LIST_TIMEOUT_MS=180000`（`.env` 不存在时从 `.env.example` 复制）。
@@ -2002,7 +2004,7 @@ Expected: 输出所要时间。若超过 55 秒，则在 `.env` 中设置 `LIST_
 - [ ] **Step 7: 手动确认真实数据**
 
 ```bash
-cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && node -e "import('./server/adapters/pip.js').then(async m => { const a = m.default; console.log('detect:', await a.detect()); const items = await a.list(); console.log('件数:', items.length); console.log('过时:', items.filter(i => i.status === 'outdated').length); })"
+node -e "import('./server/adapters/pip.js').then(async m => { const a = m.default; console.log('detect:', await a.detect()); const items = await a.list(); console.log('件数:', items.length); console.log('过时:', items.filter(i => i.status === 'outdated').length); })"
 ```
 
 Expected: `detect: true`，件数 180 前后
@@ -2309,7 +2311,7 @@ main();
 - [ ] **Step 4: 启动并目视确认**
 
 ```bash
-cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && npm start
+npm start
 ```
 
 Expected: 三张卡片（Homebrew、npm 全局包、pip 用户级包）显示。Homebrew 与 pip 取得中时 npm 卡片已完成显示。确认后 `Ctrl+C`。
@@ -2332,7 +2334,7 @@ git commit -m "feat: 前端（FR-04～FR-21、SEC-13）"
 - [ ] **Step 1: 执行全部自动测试**
 
 ```bash
-cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && npm test
+npm test
 ```
 
 Expected: PASS，全 142 tests（config 27 + exec 20 + security 25 + routes 24 + routes.integration 7 + static 6 + homebrew 14 + npm 10 + pip 9）

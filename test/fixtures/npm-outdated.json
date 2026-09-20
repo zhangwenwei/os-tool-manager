@@ -4,13 +4,13 @@
     "wanted": "0.1.5-rc.2",
     "latest": "0.1.5-rc.2",
     "dependent": "global",
-    "location": "/Users/ZHANGWENWEI/.local/lib/node_modules/@deepseek-ai/dsh"
+    "location": "/home/user/.local/lib/node_modules/@deepseek-ai/dsh"
   },
   "@fission-ai/openspec": {
     "current": "1.10.0",
     "wanted": "1.13.1",
     "latest": "1.13.1",
     "dependent": "global",
-    "location": "/Users/ZHANGWENWEI/.local/lib/node_modules/@fission-ai/openspec"
+    "location": "/home/user/.local/lib/node_modules/@fission-ai/openspec"
   }
 }
