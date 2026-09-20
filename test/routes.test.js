@@ -87,3 +87,35 @@ test('未知端点返回 404', async () => {
   assert.equal(res.statusCode, 404);
   assert.equal(res.body.error.code, 'NOT_FOUND');
 });
+
+test('GET items 返回条目清单', async () => {
+  const router = createRouter({ adapters: [fakeAdapter()], token: TOKEN, origin: ORIGIN });
+  const res = await call(router, '/api/adapters/fake/items');
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.items.length, 1);
+  assert.equal(res.body.items[0].id, 'pkg-a');
+});
+
+test('GET items 未知生态返回 404', async () => {
+  const router = createRouter({ adapters: [fakeAdapter()], token: TOKEN, origin: ORIGIN });
+  const res = await call(router, '/api/adapters/nope/items');
+  assert.equal(res.statusCode, 404);
+  assert.equal(res.body.error.code, 'UNKNOWN_ADAPTER');
+});
+
+test('GET items 超时时返回 504', async () => {
+  const err = new Error('timeout'); err.code = 'TIMEOUT';
+  const adapter = fakeAdapter({ list: async () => { throw err; } });
+  const router = createRouter({ adapters: [adapter], token: TOKEN, origin: ORIGIN });
+  const res = await call(router, '/api/adapters/fake/items');
+  assert.equal(res.statusCode, 504);
+  assert.equal(res.body.error.code, 'TIMEOUT');
+});
+
+test('GET items 其他异常时返回 500', async () => {
+  const adapter = fakeAdapter({ list: async () => { throw new Error('boom'); } });
+  const router = createRouter({ adapters: [adapter], token: TOKEN, origin: ORIGIN });
+  const res = await call(router, '/api/adapters/fake/items');
+  assert.equal(res.statusCode, 500);
+  assert.equal(res.body.error.code, 'INTERNAL');
+});

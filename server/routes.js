@@ -50,6 +50,20 @@ export function createRouter({ adapters, token, origin }) {
       return send(res, 200, { adapters: results.filter(Boolean) });
     }
 
+    const itemsMatch = pathname.match(/^\/api\/adapters\/([^/]+)\/items$/);
+    if (req.method === 'GET' && itemsMatch) {
+      const adapter = byId(safeDecode(itemsMatch[1]));
+      if (!adapter) return fail(res, 404, 'UNKNOWN_ADAPTER', '未知的生态。');
+      try {
+        const items = await adapter.list();
+        known.set(adapter.id, new Map(items.map((i) => [i.id, i])));
+        return send(res, 200, { items });
+      } catch (e) {
+        if (e.code === 'TIMEOUT') return fail(res, 504, 'TIMEOUT', e.message, e.detail ?? null);
+        return fail(res, 500, 'INTERNAL', '条目清单取得失败。', e.detail ?? e.message);
+      }
+    }
+
     return fail(res, 404, 'NOT_FOUND', '未知的端点。');
   };
 }
