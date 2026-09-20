@@ -148,6 +148,8 @@ cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && npm test
 
 Expected: FAIL，`Cannot find module '.../server/config.js'`
 
+> **实装后的修订（代码评审对应）**：本节代码为初版。实际实装在评审后追加了数值项的整数与取值域校验、布尔项的严格解析、`.env` 值的引号剥离、无效值警告、`loadConfig` 的 ENOENT 与其他错误的区分，以及记忆化的 `getConfig()`。最终形态见 `server/config.js`（commit `fae0790`）。后续任务一律使用 `getConfig()` 取配置，不再各自 `loadConfig`。
+
 - [ ] **Step 4: 实装 `server/config.js`**
 
 ```js
@@ -1210,7 +1212,7 @@ import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { loadConfig } from './config.js';
+import { getConfig } from './config.js';
 import { generateToken } from './security.js';
 import { createRouter } from './routes.js';
 import { createStatic } from './static.js';
@@ -1219,7 +1221,7 @@ import { adapters } from './adapters/registry.js';
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
 
-const config = loadConfig(join(root, '.env'));
+const config = getConfig();
 const token = generateToken();
 const origin = `http://127.0.0.1:${config.PORT}`;
 
@@ -1411,15 +1413,16 @@ Expected: FAIL，`Cannot find module '.../server/adapters/homebrew.js'`
 
 ```js
 import { run, ExecError } from '../exec.js';
-import { loadConfig } from '../config.js';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { getConfig } from '../config.js';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const config = loadConfig(join(root, '.env'));
-
-const listOpts = () => ({ timeoutMs: config.LIST_TIMEOUT_MS, maxBytes: config.MAX_OUTPUT_BYTES });
-const actionOpts = () => ({ timeoutMs: config.ACTION_TIMEOUT_MS, maxBytes: config.MAX_OUTPUT_BYTES });
+const listOpts = () => {
+  const c = getConfig();
+  return { timeoutMs: c.LIST_TIMEOUT_MS, maxBytes: c.MAX_OUTPUT_BYTES };
+};
+const actionOpts = () => {
+  const c = getConfig();
+  return { timeoutMs: c.ACTION_TIMEOUT_MS, maxBytes: c.MAX_OUTPUT_BYTES };
+};
 
 export function parseVersions(stdout) {
   const out = [];
@@ -1644,15 +1647,16 @@ Expected: FAIL，`Cannot find module '.../server/adapters/npm.js'`
 
 ```js
 import { run } from '../exec.js';
-import { loadConfig } from '../config.js';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { getConfig } from '../config.js';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const config = loadConfig(join(root, '.env'));
-
-const listOpts = () => ({ timeoutMs: config.LIST_TIMEOUT_MS, maxBytes: config.MAX_OUTPUT_BYTES });
-const actionOpts = () => ({ timeoutMs: config.ACTION_TIMEOUT_MS, maxBytes: config.MAX_OUTPUT_BYTES });
+const listOpts = () => {
+  const c = getConfig();
+  return { timeoutMs: c.LIST_TIMEOUT_MS, maxBytes: c.MAX_OUTPUT_BYTES };
+};
+const actionOpts = () => {
+  const c = getConfig();
+  return { timeoutMs: c.ACTION_TIMEOUT_MS, maxBytes: c.MAX_OUTPUT_BYTES };
+};
 
 export function parseGlobalList(stdout) {
   let data;
@@ -1862,15 +1866,16 @@ Expected: FAIL，`Cannot find module '.../server/adapters/pip.js'`
 
 ```js
 import { run } from '../exec.js';
-import { loadConfig } from '../config.js';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { getConfig } from '../config.js';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const config = loadConfig(join(root, '.env'));
-
-const listOpts = () => ({ timeoutMs: config.LIST_TIMEOUT_MS, maxBytes: config.MAX_OUTPUT_BYTES });
-const actionOpts = () => ({ timeoutMs: config.ACTION_TIMEOUT_MS, maxBytes: config.MAX_OUTPUT_BYTES });
+const listOpts = () => {
+  const c = getConfig();
+  return { timeoutMs: c.LIST_TIMEOUT_MS, maxBytes: c.MAX_OUTPUT_BYTES };
+};
+const actionOpts = () => {
+  const c = getConfig();
+  return { timeoutMs: c.ACTION_TIMEOUT_MS, maxBytes: c.MAX_OUTPUT_BYTES };
+};
 
 function parseJsonArray(stdout) {
   try {
