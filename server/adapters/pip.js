@@ -46,6 +46,8 @@ export function buildItems(packages, outdated) {
         latest: unknown ? null : latest,
         status: unknown ? 'unknown' : latest === pkg.current ? 'ok' : 'outdated',
         active: null,
+        description: null,
+        requested: true,
         actions: ['update', 'uninstall'],
       };
     });

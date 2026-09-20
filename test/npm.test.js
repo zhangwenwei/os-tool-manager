@@ -14,8 +14,8 @@ const ok = (stdout, exitCode = 0) => ({ ok: exitCode === 0, exitCode, stdout, st
 
 test('parseGlobalList 解析真实输出', () => {
   assert.deepEqual(parseGlobalList(lsOut), [
-    { name: '@deepseek-ai/dsh', current: '0.1.1-rc.2' },
-    { name: '@fission-ai/openspec', current: '1.10.0' },
+    { name: '@deepseek-ai/dsh', current: '0.1.1-rc.2', description: null },
+    { name: '@fission-ai/openspec', current: '1.10.0', description: null },
   ]);
 });
 
@@ -25,7 +25,7 @@ test('parseGlobalList 无依赖时返回空数组', () => {
 
 test('parseGlobalList 跳过缺少 version 的项', () => {
   assert.deepEqual(parseGlobalList('{"dependencies":{"broken":{},"ok":{"version":"1.0.0"}}}'), [
-    { name: 'ok', current: '1.0.0' },
+    { name: 'ok', current: '1.0.0', description: null },
   ]);
 });
 
@@ -126,4 +126,14 @@ test('actionArgs 拒绝以连字符或点开头的包名', () => {
 test('actionArgs 拒绝空名与非字符串', () => {
   assert.throws(() => actionArgs('uninstall', ''), (e) => e.code === 'BAD_ITEM_ID');
   assert.throws(() => actionArgs('uninstall', null), (e) => e.code === 'BAD_ITEM_ID');
+});
+
+test('npm 包带中文简介', () => {
+  const items = buildItems([{ name: '@deepseek-ai/dsh', current: '1' }], new Map());
+  assert.equal(items[0].description, 'DeepSeek 的命令行工具');
+});
+
+test('npm 包全部标记为主动安装', () => {
+  const items = buildItems([{ name: 'tsx', current: '1' }], new Map());
+  assert.equal(items[0].requested, true);
 });

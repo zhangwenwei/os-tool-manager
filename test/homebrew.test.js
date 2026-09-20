@@ -140,3 +140,37 @@ test('buildList 在输出被截断时抛出', () => {
 test('buildList 正常时返回条目', () => {
   assert.deepEqual(buildList({ info: { ok: true, exitCode: 0, stderr: '', stdout: '{}', truncated: false } }), []);
 });
+
+test('formula 带中文简介', () => {
+  assert.equal(byId('formula:openssl@3').description, '加密与 TLS 工具包');
+});
+
+test('词典中没有的包回落到英文原文', () => {
+  const json = JSON.stringify({
+    formulae: [{ name: 'unknown-pkg', versions: { stable: '1' }, installed: [{ version: '1' }], linked_keg: '1', outdated: false, desc: 'Some English description' }],
+  });
+  assert.equal(parseInstalled(json)[0].description, 'Some English description');
+});
+
+test('既无词典也无英文原文时为 null', () => {
+  const json = JSON.stringify({
+    formulae: [{ name: 'bare', versions: { stable: '1' }, installed: [{ version: '1' }], linked_keg: '1', outdated: false }],
+  });
+  assert.equal(parseInstalled(json)[0].description, null);
+});
+
+test('依赖包标记为非主动安装', () => {
+  const json = JSON.stringify({
+    formulae: [
+      { name: 'dep', versions: { stable: '1' }, installed: [{ version: '1', installed_on_request: false }], linked_keg: '1', outdated: false },
+      { name: 'mine', versions: { stable: '1' }, installed: [{ version: '1', installed_on_request: true }], linked_keg: '1', outdated: false },
+    ],
+  });
+  const items = parseInstalled(json);
+  assert.equal(items.find((i) => i.name === 'dep').requested, false);
+  assert.equal(items.find((i) => i.name === 'mine').requested, true);
+});
+
+test('cask 恒为主动安装', () => {
+  assert.equal(byId('cask:iterm2').requested, true);
+});

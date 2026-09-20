@@ -1,5 +1,6 @@
 import { run } from '../exec.js';
 import { AdapterError, listOpts, actionOpts, assertNotTruncated } from './base.js';
+import { describe } from './descriptions.js';
 
 const DETECT_TIMEOUT_MS = 10000;
 
@@ -12,7 +13,7 @@ export function parseGlobalList(stdout) {
   }
   return Object.entries(data?.dependencies ?? {})
     .filter(([, v]) => v?.version)
-    .map(([name, v]) => ({ name, current: v.version }));
+    .map(([name, v]) => ({ name, current: v.version, description: v.description ?? null }));
 }
 
 export function parseOutdated(stdout) {
@@ -42,6 +43,8 @@ export function buildItems(packages, outdated) {
       latest: unknown ? null : latest,
       status: unknown ? 'unknown' : latest === pkg.current ? 'ok' : 'outdated',
       active: null,
+      description: describe('npm', pkg.name, pkg.description ?? null),
+      requested: true,
       actions: pkg.name === 'npm' ? ['update'] : ['update', 'uninstall'],
     };
   });
@@ -92,7 +95,7 @@ export default {
 
   async list() {
     const [list, outdated] = await Promise.all([
-      run('npm', ['ls', '-g', '--depth=0', '--json'], listOpts()),
+      run('npm', ['ls', '-g', '--depth=0', '--json', '--long'], listOpts()),
       run('npm', ['outdated', '-g', '--json'], listOpts()),
     ]);
     return buildList({ list, outdated });

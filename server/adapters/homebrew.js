@@ -1,9 +1,10 @@
 import { run } from '../exec.js';
 import { AdapterError, listOpts, actionOpts, assertNotTruncated, assertOk } from './base.js';
+import { describe } from './descriptions.js';
 
 const DETECT_TIMEOUT_MS = 5000;
 
-function makeItem(id, name, current, latest) {
+function makeItem(id, name, current, latest, extra = {}) {
   const unknown = current == null || latest == null;
   return {
     id,
@@ -12,6 +13,8 @@ function makeItem(id, name, current, latest) {
     latest: unknown ? null : latest,
     status: unknown ? 'unknown' : current === latest ? 'ok' : 'outdated',
     active: null,
+    description: extra.description ?? null,
+    requested: extra.requested ?? null,
     actions: ['update', 'uninstall'],
   };
 }
@@ -21,12 +24,22 @@ function formulaItem(entry) {
   const installed = (entry.installed ?? []).map((i) => i?.version).filter(Boolean);
   const current = entry.linked_keg ?? installed[installed.length - 1] ?? null;
   const latest = entry.outdated ? (entry.versions?.stable ?? null) : current;
-  return makeItem(`formula:${name}`, name, current, latest);
+  const id = `formula:${name}`;
+  return makeItem(id, name, current, latest, {
+    description: describe('homebrew', id, entry.desc),
+    // installed_on_request 为 false 表示它是被其他包拖进来的依赖，单独卸载会弄坏依赖它的包。
+    requested: entry.installed?.[0]?.installed_on_request ?? null,
+  });
 }
 
 function caskItem(entry) {
   const token = entry.token;
-  return makeItem(`cask:${token}`, entry.name?.[0] ?? token, entry.installed ?? null, entry.version ?? null);
+  const id = `cask:${token}`;
+  return makeItem(id, entry.name?.[0] ?? token, entry.installed ?? null, entry.version ?? null, {
+    description: describe('homebrew', id, entry.desc),
+    // cask 是独立应用，不存在被其他包依赖的情况。
+    requested: true,
+  });
 }
 
 export function parseInstalled(stdout) {

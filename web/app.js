@@ -126,12 +126,28 @@ class Card {
 
     const name = document.createElement('span');
     name.className = 'name';
-    name.textContent = item.name;
+    const title = document.createElement('span');
+    title.className = 'title';
+    title.textContent = item.name;
+    name.append(title);
     if (item.active === true) {
       const tag = document.createElement('span');
       tag.className = 'active-tag';
       tag.textContent = '当前生效';
       name.append(tag);
+    }
+    if (item.requested === false) {
+      const tag = document.createElement('span');
+      tag.className = 'dep-tag';
+      tag.textContent = '依赖';
+      tag.title = '由其他包安装，单独卸载会弄坏依赖它的包';
+      name.append(tag);
+    }
+    if (item.description) {
+      const desc = document.createElement('span');
+      desc.className = 'desc';
+      desc.textContent = item.description;
+      name.append(desc);
     }
 
     const ver = document.createElement('span');

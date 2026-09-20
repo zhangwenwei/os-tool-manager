@@ -133,3 +133,9 @@ test('actionArgs 拒绝空名与非字符串', () => {
   assert.throws(() => actionArgs('uninstall', '', ['-y']), (e) => e.code === 'BAD_ITEM_ID');
   assert.throws(() => actionArgs('uninstall', null, ['-y']), (e) => e.code === 'BAD_ITEM_ID');
 });
+
+test('pip 条目具备统一的 description 与 requested 字段', () => {
+  const items = buildItems([{ name: 'numpy', current: '1' }], new Map());
+  assert.equal(items[0].description, null);
+  assert.equal(items[0].requested, true);
+});

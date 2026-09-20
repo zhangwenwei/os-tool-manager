@@ -25,10 +25,16 @@ main { padding: 20px 24px 60px; display: grid; gap: 20px; }
 .card-head h2 { margin: 0; font-size: 15px; flex: 1; }
 .count { color: var(--muted); font-size: 12px; }
 .card-body { max-height: 420px; overflow-y: auto; }
-.row { display: flex; align-items: center; gap: 10px; padding: 8px 16px; border-bottom: 1px solid var(--border); }
+.row { display: flex; align-items: flex-start; gap: 10px; padding: 8px 16px; border-bottom: 1px solid var(--border); }
 .row:last-child { border-bottom: none; }
 .row.busy { opacity: 0.45; }
-.name { flex: 1; font-weight: 500; word-break: break-all; }
+.name { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
+.title { font-weight: 500; word-break: break-all; }
+.desc { color: var(--muted); font-size: 12px; flex-basis: 100%; }
+.dep-tag {
+  color: var(--muted); font-size: 11px; padding: 0 5px;
+  border: 1px solid var(--border); border-radius: 8px;
+}
 .active-tag { color: var(--ok); font-size: 11px; margin-left: 6px; }
 .ver { color: var(--muted); font-size: 12px; font-family: ui-monospace, Menlo, monospace; white-space: nowrap; }
 .badge { font-size: 11px; padding: 1px 7px; border-radius: 10px; border: 1px solid currentColor; white-space: nowrap; }
