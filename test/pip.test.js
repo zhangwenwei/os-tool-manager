@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { parseList, parseOutdated, buildItems, buildList, packageArgs, AdapterError } from '../server/adapters/pip.js';
+import { parseList, parseOutdated, buildItems, buildList, actionArgs, AdapterError } from '../server/adapters/pip.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (n) => readFileSync(join(here, 'fixtures', n), 'utf8');
@@ -87,49 +87,49 @@ test('buildItems 不修改传入的数组', () => {
 });
 
 test('buildList 组合真实输出', () => {
-  const items = buildList(ok(listOut), ok(outdatedOut));
+  const items = buildList({ list: ok(listOut), outdated: ok(outdatedOut) });
   assert.equal(items.length, 4);
   assert.equal(items.filter((i) => i.status === 'outdated').length, 2);
   assert.equal(items.filter((i) => i.status === 'ok').length, 2);
 });
 
 test('buildList 在空清单时返回空数组', () => {
-  assert.deepEqual(buildList(ok('[]'), ok('[]')), []);
+  assert.deepEqual(buildList({ list: ok('[]'), outdated: ok('[]') }), []);
 });
 
 test('buildList 在 pip list 失败时抛出', () => {
   assert.throws(
-    () => buildList({ ok: false, exitCode: 1, stdout: '', stderr: '炸了', truncated: false }, ok('[]')),
+    () => buildList({ list: { ok: false, exitCode: 1, stdout: '', stderr: '炸了', truncated: false }, outdated: ok('[]') }),
     (e) => e.code === 'LIST_FAILED'
   );
 });
 
-test('buildList 在 pip outdated 失败时抛出', () => {
+test('buildList 在 pip outdated 失败时抛出 LIST_FAILED', () => {
   assert.throws(
-    () => buildList(ok('[]'), { ok: false, exitCode: 1, stdout: '', stderr: '网络不通', truncated: false }),
-    (e) => e.code === 'OUTDATED_FAILED'
+    () => buildList({ list: ok('[]'), outdated: { ok: false, exitCode: 1, stdout: '', stderr: '网络不通', truncated: false } }),
+    (e) => e.code === 'LIST_FAILED'
   );
 });
 
 test('buildList 在输出被截断时抛出', () => {
   assert.throws(
-    () => buildList({ ok: true, exitCode: 0, stdout: '[]', stderr: '', truncated: true }, ok('[]')),
+    () => buildList({ list: { ok: true, exitCode: 0, stdout: '[]', stderr: '', truncated: true }, outdated: ok('[]') }),
     (e) => e.code === 'LIST_TRUNCATED'
   );
 });
 
-test('packageArgs 生成更新与卸载参数', () => {
-  assert.deepEqual(packageArgs('install', 'numpy', ['--user', '--upgrade']), [
+test('actionArgs 生成更新与卸载参数', () => {
+  assert.deepEqual(actionArgs('install', 'numpy', ['--user', '--upgrade']), [
     '-m', 'pip', 'install', '--user', '--upgrade', 'numpy',
   ]);
-  assert.deepEqual(packageArgs('uninstall', 'numpy', ['-y']), ['-m', 'pip', 'uninstall', '-y', 'numpy']);
+  assert.deepEqual(actionArgs('uninstall', 'numpy', ['-y']), ['-m', 'pip', 'uninstall', '-y', 'numpy']);
 });
 
-test('packageArgs 拒绝以连字符开头的包名', () => {
-  assert.throws(() => packageArgs('uninstall', '-rf', ['-y']), (e) => e.code === 'BAD_ITEM_ID');
+test('actionArgs 拒绝以连字符开头的包名', () => {
+  assert.throws(() => actionArgs('uninstall', '-rf', ['-y']), (e) => e.code === 'BAD_ITEM_ID');
 });
 
-test('packageArgs 拒绝空名与非字符串', () => {
-  assert.throws(() => packageArgs('uninstall', '', ['-y']), (e) => e.code === 'BAD_ITEM_ID');
-  assert.throws(() => packageArgs('uninstall', null, ['-y']), (e) => e.code === 'BAD_ITEM_ID');
+test('actionArgs 拒绝空名与非字符串', () => {
+  assert.throws(() => actionArgs('uninstall', '', ['-y']), (e) => e.code === 'BAD_ITEM_ID');
+  assert.throws(() => actionArgs('uninstall', null, ['-y']), (e) => e.code === 'BAD_ITEM_ID');
 });

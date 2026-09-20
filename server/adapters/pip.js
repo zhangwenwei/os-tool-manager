@@ -1,26 +1,11 @@
 import { run } from '../exec.js';
-import { getConfig } from '../config.js';
+import { AdapterError, listOpts, actionOpts, assertNotTruncated, assertOk } from './base.js';
 
 const DETECT_TIMEOUT_MS = 10000;
 
-const listOpts = () => {
-  const c = getConfig();
-  return { timeoutMs: c.LIST_TIMEOUT_MS, maxBytes: c.MAX_OUTPUT_BYTES };
-};
-const actionOpts = () => {
-  const c = getConfig();
-  return { timeoutMs: c.ACTION_TIMEOUT_MS, maxBytes: c.MAX_OUTPUT_BYTES };
-};
-
-export class AdapterError extends Error {
-  constructor(code, message) {
-    super(message);
-    this.name = 'AdapterError';
-    this.code = code;
-  }
-}
-
 function parseJsonArray(stdout, what) {
+  // 与 npm 适配器对齐：命令成功但输出为空时视为空集合。
+  if (!stdout.trim()) return [];
   let data;
   try {
     data = JSON.parse(stdout);
@@ -66,20 +51,16 @@ export function buildItems(packages, outdated) {
     });
 }
 
-export function buildList(listResult, outdatedResult) {
-  if (listResult.truncated || outdatedResult.truncated) {
-    throw new AdapterError('LIST_TRUNCATED', 'pip 的输出超过上限，无法解析。');
-  }
-  if (!listResult.ok) {
-    throw new AdapterError('LIST_FAILED', listResult.stderr.trim() || `pip list 以退出码 ${listResult.exitCode} 结束。`);
-  }
-  if (!outdatedResult.ok) {
-    throw new AdapterError('OUTDATED_FAILED', outdatedResult.stderr.trim() || `pip list --outdated 以退出码 ${outdatedResult.exitCode} 结束。`);
-  }
-  return buildItems(parseList(listResult.stdout), parseOutdated(outdatedResult.stdout));
+// pip 的两条命令在正常情况下退出码均为 0，适用标准守卫。
+export function buildList({ list, outdated }) {
+  assertNotTruncated(list, 'pip list');
+  assertNotTruncated(outdated, 'pip list --outdated');
+  assertOk(list, 'pip list');
+  assertOk(outdated, 'pip list --outdated');
+  return buildItems(parseList(list.stdout), parseOutdated(outdated.stdout));
 }
 
-export function packageArgs(subcommand, name, extra = []) {
+export function actionArgs(subcommand, name, extra = []) {
   if (typeof name !== 'string' || name === '' || name.startsWith('-')) {
     throw new AdapterError('BAD_ITEM_ID', `无法识别的包名：${name}`);
   }
@@ -100,23 +81,25 @@ export default {
   },
 
   async list() {
-    const [listResult, outdatedResult] = await Promise.all([
+    const [list, outdated] = await Promise.all([
       run('python3', ['-m', 'pip', 'list', '--user', '--format=json'], listOpts()),
       run('python3', ['-m', 'pip', 'list', '--user', '--outdated', '--format=json'], listOpts()),
     ]);
-    return buildList(listResult, outdatedResult);
+    return buildList({ list, outdated });
   },
 
   actions: {
     update: {
       label: '更新',
       destructive: false,
-      run: (item) => run('python3', packageArgs('install', item.id, ['--user', '--upgrade']), actionOpts()),
+      run: (item) => run('python3', actionArgs('install', item.id, ['--user', '--upgrade']), actionOpts()),
     },
     uninstall: {
       label: '卸载',
       destructive: true,
-      run: (item) => run('python3', packageArgs('uninstall', item.id, ['-y']), actionOpts()),
+      run: (item) => run('python3', actionArgs('uninstall', item.id, ['-y']), actionOpts()),
     },
   },
 };
+
+export { AdapterError };

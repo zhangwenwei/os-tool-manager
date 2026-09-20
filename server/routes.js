@@ -1,4 +1,24 @@
 import { checkToken, checkOrigin, checkAction, checkItemId, checkConfirm } from './security.js';
+import { AdapterError } from './adapters/base.js';
+
+const SPAWN_FAILURE_CODES = new Set(['ENOENT', 'EACCES', 'SPAWN_FAILED']);
+
+// 把异常分为「下游命令的预期失败」与「本服务的缺陷」。
+// 前者是断网、工具未安装、输出无法解析等运行时状况，重试或修环境可能有用；
+// 后者是适配器或路由层自身的错误。两者不应在界面上长得一样。
+function classifyFailure(e) {
+  if (e.code === 'TIMEOUT') {
+    return { status: 504, code: 'TIMEOUT', message: '命令执行超时。' };
+  }
+  if (SPAWN_FAILURE_CODES.has(e.code)) {
+    return { status: 502, code: 'ADAPTER_FAILED', message: '命令无法执行。请确认该工具已安装且在 PATH 中。' };
+  }
+  // BAD_ITEM_ID 意味着条目已通过白名单却仍无法解析，属适配器自身的缺陷，不归为下游失败。
+  if (e instanceof AdapterError && e.code !== 'BAD_ITEM_ID') {
+    return { status: 502, code: 'ADAPTER_FAILED', message: '生态的下游命令失败。' };
+  }
+  return null;
+}
 
 class BodyError extends Error {
   constructor(code) {
@@ -101,7 +121,8 @@ export function createRouter({ adapters, token, origin }) {
       try {
         items = await adapter.list();
       } catch (e) {
-        if (e.code === 'TIMEOUT') return fail(res, 504, 'TIMEOUT', '命令执行超时。', e.message);
+        const known = classifyFailure(e);
+        if (known) return fail(res, known.status, known.code, known.message, e.detail ?? e.message);
         return fail(res, 500, 'INTERNAL', '条目清单取得失败。', e.detail ?? e.message);
       }
       listedItems.set(adapter.id, new Map(items.map((i) => [i.id, i])));
@@ -145,7 +166,8 @@ export function createRouter({ adapters, token, origin }) {
       try {
         result = await action.run(items.get(body.itemId));
       } catch (e) {
-        if (e.code === 'TIMEOUT') return fail(res, 504, 'TIMEOUT', '命令执行超时。', e.message);
+        const known = classifyFailure(e);
+        if (known) return fail(res, known.status, known.code, known.message, e.detail ?? e.message);
         return fail(res, 500, 'INTERNAL', '操作执行中发生错误。', e.detail ?? e.message);
       } finally {
         busy.delete(adapter.id);

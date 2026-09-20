@@ -1,24 +1,7 @@
 import { run } from '../exec.js';
-import { getConfig } from '../config.js';
+import { AdapterError, listOpts, actionOpts, assertNotTruncated, assertOk } from './base.js';
 
 const DETECT_TIMEOUT_MS = 5000;
-
-const listOpts = () => {
-  const c = getConfig();
-  return { timeoutMs: c.LIST_TIMEOUT_MS, maxBytes: c.MAX_OUTPUT_BYTES };
-};
-const actionOpts = () => {
-  const c = getConfig();
-  return { timeoutMs: c.ACTION_TIMEOUT_MS, maxBytes: c.MAX_OUTPUT_BYTES };
-};
-
-export class AdapterError extends Error {
-  constructor(code, message) {
-    super(message);
-    this.name = 'AdapterError';
-    this.code = code;
-  }
-}
 
 function makeItem(id, name, current, latest) {
   const unknown = current == null || latest == null;
@@ -59,17 +42,14 @@ export function parseInstalled(stdout) {
   ];
 }
 
-export function buildList(result) {
-  if (!result.ok) {
-    throw new AdapterError('LIST_FAILED', result.stderr.trim() || `brew info 以退出码 ${result.exitCode} 结束。`);
-  }
-  if (result.truncated) {
-    throw new AdapterError('LIST_TRUNCATED', 'brew info 的输出超过上限，无法解析。');
-  }
-  return parseInstalled(result.stdout);
+// brew info 一条命令即可给出全部信息，两条守卫都适用标准规则。
+export function buildList({ info }) {
+  assertNotTruncated(info, 'brew info');
+  assertOk(info, 'brew info');
+  return parseInstalled(info.stdout);
 }
 
-export function commandArgs(subcommand, itemId) {
+export function actionArgs(subcommand, itemId) {
   if (typeof itemId !== 'string') {
     throw new AdapterError('BAD_ITEM_ID', `条目 ID 不是字符串：${itemId}`);
   }
@@ -96,19 +76,21 @@ export default {
   },
 
   async list() {
-    return buildList(await run('brew', ['info', '--json=v2', '--installed'], listOpts()));
+    return buildList({ info: await run('brew', ['info', '--json=v2', '--installed'], listOpts()) });
   },
 
   actions: {
     update: {
       label: '更新',
       destructive: false,
-      run: (item) => run('brew', commandArgs('upgrade', item.id), actionOpts()),
+      run: (item) => run('brew', actionArgs('upgrade', item.id), actionOpts()),
     },
     uninstall: {
       label: '卸载',
       destructive: true,
-      run: (item) => run('brew', commandArgs('uninstall', item.id), actionOpts()),
+      run: (item) => run('brew', actionArgs('uninstall', item.id), actionOpts()),
     },
   },
 };
+
+export { AdapterError };

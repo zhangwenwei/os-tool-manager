@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { parseInstalled, buildList, commandArgs, AdapterError } from '../server/adapters/homebrew.js';
+import { parseInstalled, buildList, actionArgs, AdapterError } from '../server/adapters/homebrew.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixture = readFileSync(join(here, 'fixtures', 'brew-installed.json'), 'utf8');
@@ -90,26 +90,26 @@ test('parseInstalled 非 JSON 时抛出 AdapterError', () => {
   assert.throws(() => parseInstalled('not json'), (e) => e instanceof AdapterError && e.code === 'PARSE_FAILED');
 });
 
-test('commandArgs 生成带终止符的参数', () => {
-  assert.deepEqual(commandArgs('upgrade', 'formula:node'), ['upgrade', '--formula', '--', 'node']);
-  assert.deepEqual(commandArgs('uninstall', 'cask:iterm2'), ['uninstall', '--cask', '--', 'iterm2']);
+test('actionArgs 生成带终止符的参数', () => {
+  assert.deepEqual(actionArgs('upgrade', 'formula:node'), ['upgrade', '--formula', '--', 'node']);
+  assert.deepEqual(actionArgs('uninstall', 'cask:iterm2'), ['uninstall', '--cask', '--', 'iterm2']);
 });
 
-test('commandArgs 拒绝无前缀的 ID', () => {
-  assert.throws(() => commandArgs('upgrade', 'node'), (e) => e.code === 'BAD_ITEM_ID');
+test('actionArgs 拒绝无前缀的 ID', () => {
+  assert.throws(() => actionArgs('upgrade', 'node'), (e) => e.code === 'BAD_ITEM_ID');
 });
 
-test('commandArgs 拒绝未知前缀', () => {
-  assert.throws(() => commandArgs('upgrade', 'bogus:x'), (e) => e.code === 'BAD_ITEM_ID');
+test('actionArgs 拒绝未知前缀', () => {
+  assert.throws(() => actionArgs('upgrade', 'bogus:x'), (e) => e.code === 'BAD_ITEM_ID');
 });
 
-test('commandArgs 拒绝空的包名', () => {
-  assert.throws(() => commandArgs('uninstall', 'formula:'), (e) => e.code === 'BAD_ITEM_ID');
+test('actionArgs 拒绝空的包名', () => {
+  assert.throws(() => actionArgs('uninstall', 'formula:'), (e) => e.code === 'BAD_ITEM_ID');
 });
 
-test('commandArgs 拒绝非字符串的 ID', () => {
-  assert.throws(() => commandArgs('uninstall', null), (e) => e.code === 'BAD_ITEM_ID');
-  assert.throws(() => commandArgs('uninstall', undefined), (e) => e.code === 'BAD_ITEM_ID');
+test('actionArgs 拒绝非字符串的 ID', () => {
+  assert.throws(() => actionArgs('uninstall', null), (e) => e.code === 'BAD_ITEM_ID');
+  assert.throws(() => actionArgs('uninstall', undefined), (e) => e.code === 'BAD_ITEM_ID');
 });
 
 test('linked_keg 指向较旧版本时以它为当前版本', () => {
@@ -125,18 +125,18 @@ test('linked_keg 指向较旧版本时以它为当前版本', () => {
 
 test('buildList 在命令失败时抛出而非返回空清单', () => {
   assert.throws(
-    () => buildList({ ok: false, exitCode: 1, stderr: 'brew 挂了', stdout: '', truncated: false }),
+    () => buildList({ info: { ok: false, exitCode: 1, stderr: 'brew 挂了', stdout: '', truncated: false } }),
     (e) => e instanceof AdapterError && e.code === 'LIST_FAILED'
   );
 });
 
 test('buildList 在输出被截断时抛出', () => {
   assert.throws(
-    () => buildList({ ok: true, exitCode: 0, stderr: '', stdout: '{}', truncated: true }),
+    () => buildList({ info: { ok: true, exitCode: 0, stderr: '', stdout: '{}', truncated: true } }),
     (e) => e.code === 'LIST_TRUNCATED'
   );
 });
 
 test('buildList 正常时返回条目', () => {
-  assert.deepEqual(buildList({ ok: true, exitCode: 0, stderr: '', stdout: '{}', truncated: false }), []);
+  assert.deepEqual(buildList({ info: { ok: true, exitCode: 0, stderr: '', stdout: '{}', truncated: false } }), []);
 });

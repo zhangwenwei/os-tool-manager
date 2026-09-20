@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { parseGlobalList, parseOutdated, buildItems, buildList, packageArgs, AdapterError } from '../server/adapters/npm.js';
+import { parseGlobalList, parseOutdated, buildItems, buildList, actionArgs, AdapterError } from '../server/adapters/npm.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (n) => readFileSync(join(here, 'fixtures', n), 'utf8');
@@ -78,52 +78,52 @@ test('buildItems 对 npm 自身不提供卸载', () => {
 });
 
 test('buildList 组合真实输出', () => {
-  const items = buildList(ok(lsOut), ok(outdatedOut, 1));
+  const items = buildList({ list: ok(lsOut), outdated: ok(outdatedOut, 1) });
   assert.equal(items.length, 2);
   assert.ok(items.every((i) => i.status === 'outdated'));
 });
 
 test('buildList 接受 npm outdated 的退出码 1', () => {
-  assert.doesNotThrow(() => buildList(ok(lsOut), ok(outdatedOut, 1)));
+  assert.doesNotThrow(() => buildList({ list: ok(lsOut), outdated: ok(outdatedOut, 1) }));
 });
 
 test('buildList 拒绝 npm outdated 的其他非零退出码', () => {
   assert.throws(
-    () => buildList(ok(lsOut), { ok: false, exitCode: 127, stdout: '', stderr: 'not found', truncated: false }),
+    () => buildList({ list: ok(lsOut), outdated: { ok: false, exitCode: 127, stdout: '', stderr: 'not found', truncated: false } }),
     (e) => e.code === 'OUTDATED_FAILED'
   );
 });
 
 test('buildList 在 npm ls 失败且无输出时抛出', () => {
   assert.throws(
-    () => buildList({ ok: false, exitCode: 1, stdout: '', stderr: '炸了', truncated: false }, ok('{}')),
+    () => buildList({ list: { ok: false, exitCode: 1, stdout: '', stderr: '炸了', truncated: false }, outdated: ok('{}') }),
     (e) => e.code === 'LIST_FAILED'
   );
 });
 
 test('buildList 在 npm ls 退出码非零但有输出时仍解析', () => {
-  const items = buildList(ok(lsOut, 1), ok('{}'));
+  const items = buildList({ list: ok(lsOut, 1), outdated: ok('{}') });
   assert.equal(items.length, 2);
 });
 
 test('buildList 在输出被截断时抛出', () => {
   assert.throws(
-    () => buildList({ ok: true, exitCode: 0, stdout: '{}', stderr: '', truncated: true }, ok('{}')),
+    () => buildList({ list: { ok: true, exitCode: 0, stdout: '{}', stderr: '', truncated: true }, outdated: ok('{}') }),
     (e) => e.code === 'LIST_TRUNCATED'
   );
 });
 
-test('packageArgs 生成全局安装与卸载参数', () => {
-  assert.deepEqual(packageArgs('install', 'tsx', '@latest'), ['install', '-g', 'tsx@latest']);
-  assert.deepEqual(packageArgs('uninstall', '@scope/pkg'), ['uninstall', '-g', '@scope/pkg']);
+test('actionArgs 生成全局安装与卸载参数', () => {
+  assert.deepEqual(actionArgs('install', 'tsx', '@latest'), ['install', '-g', 'tsx@latest']);
+  assert.deepEqual(actionArgs('uninstall', '@scope/pkg'), ['uninstall', '-g', '@scope/pkg']);
 });
 
-test('packageArgs 拒绝以连字符或点开头的包名', () => {
-  assert.throws(() => packageArgs('uninstall', '-rf'), (e) => e.code === 'BAD_ITEM_ID');
-  assert.throws(() => packageArgs('uninstall', '../evil'), (e) => e.code === 'BAD_ITEM_ID');
+test('actionArgs 拒绝以连字符或点开头的包名', () => {
+  assert.throws(() => actionArgs('uninstall', '-rf'), (e) => e.code === 'BAD_ITEM_ID');
+  assert.throws(() => actionArgs('uninstall', '../evil'), (e) => e.code === 'BAD_ITEM_ID');
 });
 
-test('packageArgs 拒绝空名与非字符串', () => {
-  assert.throws(() => packageArgs('uninstall', ''), (e) => e.code === 'BAD_ITEM_ID');
-  assert.throws(() => packageArgs('uninstall', null), (e) => e.code === 'BAD_ITEM_ID');
+test('actionArgs 拒绝空名与非字符串', () => {
+  assert.throws(() => actionArgs('uninstall', ''), (e) => e.code === 'BAD_ITEM_ID');
+  assert.throws(() => actionArgs('uninstall', null), (e) => e.code === 'BAD_ITEM_ID');
 });

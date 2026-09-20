@@ -267,3 +267,44 @@ test('适配器声明缺失时抛出而非静默从清单消失', async () => {
   const router = createRouter({ adapters: [broken], token: TOKEN, origin: ORIGIN });
   await assert.rejects(() => call(router, '/api/adapters'));
 });
+
+test('适配器的下游失败返回 502 而非 500', async () => {
+  const { AdapterError } = await import('../server/adapters/base.js');
+  const adapter = fakeAdapter({
+    list: async () => { throw new AdapterError('LIST_FAILED', 'brew 连不上网'); },
+  });
+  const router = createRouter({ adapters: [adapter], token: TOKEN, origin: ORIGIN });
+  const res = await call(router, '/api/adapters/fake/items');
+  assert.equal(res.statusCode, 502);
+  assert.equal(res.body.error.code, 'ADAPTER_FAILED');
+  assert.equal(res.body.error.detail, 'brew 连不上网');
+});
+
+test('命令不存在返回 502 并提示 PATH', async () => {
+  const err = new Error('命令执行失败：brew');
+  err.code = 'ENOENT';
+  const adapter = fakeAdapter({ list: async () => { throw err; } });
+  const router = createRouter({ adapters: [adapter], token: TOKEN, origin: ORIGIN });
+  const res = await call(router, '/api/adapters/fake/items');
+  assert.equal(res.statusCode, 502);
+  assert.match(res.body.error.message, /PATH/);
+});
+
+test('适配器自身的缺陷仍返回 500', async () => {
+  const { AdapterError } = await import('../server/adapters/base.js');
+  const adapter = fakeAdapter({
+    list: async () => { throw new AdapterError('BAD_ITEM_ID', '条目 ID 无法解析'); },
+  });
+  const router = createRouter({ adapters: [adapter], token: TOKEN, origin: ORIGIN });
+  const res = await call(router, '/api/adapters/fake/items');
+  assert.equal(res.statusCode, 500);
+  assert.equal(res.body.error.code, 'INTERNAL');
+});
+
+test('未知的异常仍返回 500', async () => {
+  const adapter = fakeAdapter({ list: async () => { throw new Error('boom'); } });
+  const router = createRouter({ adapters: [adapter], token: TOKEN, origin: ORIGIN });
+  const res = await call(router, '/api/adapters/fake/items');
+  assert.equal(res.statusCode, 500);
+  assert.equal(res.body.error.code, 'INTERNAL');
+});
