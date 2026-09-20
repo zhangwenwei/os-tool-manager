@@ -730,6 +730,14 @@ export function fail(res, status, code, message, detail = null) {
   send(res, status, { error: { code, message, detail } });
 }
 
+function safeDecode(segment) {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return null;
+  }
+}
+
 function publicActions(adapter) {
   const out = {};
   for (const [key, action] of Object.entries(adapter.actions)) {
@@ -844,7 +852,7 @@ Expected: FAIL，4 tests failing（404 NOT_FOUND 而非期待值）
 ```js
     const itemsMatch = pathname.match(/^\/api\/adapters\/([^/]+)\/items$/);
     if (req.method === 'GET' && itemsMatch) {
-      const adapter = byId(decodeURIComponent(itemsMatch[1]));
+      const adapter = byId(safeDecode(itemsMatch[1]));
       if (!adapter) return fail(res, 404, 'UNKNOWN_ADAPTER', '未知的生态。');
       try {
         const items = await adapter.list();
@@ -1034,10 +1042,10 @@ function readBody(req, limit = 64 * 1024) {
       const originErr = checkOrigin(req, origin);
       if (originErr) return fail(res, originErr.status, originErr.code, originErr.message);
 
-      const adapter = byId(decodeURIComponent(actionMatch[1]));
+      const adapter = byId(safeDecode(actionMatch[1]));
       if (!adapter) return fail(res, 404, 'UNKNOWN_ADAPTER', '未知的生态。');
 
-      const actionKey = decodeURIComponent(actionMatch[2]);
+      const actionKey = safeDecode(actionMatch[2]);
       const actionErr = checkAction(adapter, actionKey);
       if (actionErr) return fail(res, actionErr.status, actionErr.code, actionErr.message);
       const action = adapter.actions[actionKey];
@@ -1130,6 +1138,10 @@ test('拒绝未知扩展名', () => {
   assert.equal(resolveStaticPath('/secret.env'), null);
   assert.equal(resolveStaticPath('/noext'), null);
 });
+
+test('拒绝非法的百分号编码', () => {
+  assert.equal(resolveStaticPath('/%ZZ.js'), null);
+});
 ```
 
 - [ ] **Step 2: 运行测试确认失败**
@@ -1153,7 +1165,12 @@ const TYPES = {
 };
 
 export function resolveStaticPath(pathname) {
-  const rel = pathname === '/' ? 'index.html' : decodeURIComponent(pathname).slice(1);
+  let rel;
+  try {
+    rel = pathname === '/' ? 'index.html' : decodeURIComponent(pathname).slice(1);
+  } catch {
+    return null;
+  }
   if (rel.includes('/') || rel.includes('\\') || rel.includes('..')) return null;
   const dot = rel.lastIndexOf('.');
   if (dot === -1) return null;
@@ -1186,7 +1203,7 @@ export function createStatic(rootDir) {
 cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && node --test test/static.test.js
 ```
 
-Expected: PASS，5 tests
+Expected: PASS，6 tests
 
 - [ ] **Step 5: 创建空的适配器注册表**
 
@@ -2319,7 +2336,7 @@ git commit -m "feat: 前端（FR-04～FR-21、SEC-13）"
 cd /Users/ZHANGWENWEI/Documents/001_Dashboard/os-tool-manager && npm test
 ```
 
-Expected: PASS，全 123 tests（config 27 + exec 20 + security 19 + routes 19 + static 5 + homebrew 14 + npm 10 + pip 9）
+Expected: PASS，全 124 tests（config 27 + exec 20 + security 19 + routes 19 + static 6 + homebrew 14 + npm 10 + pip 9）
 
 - [ ] **Step 2: 依要件书 9.3 节执行手动验证**
 
