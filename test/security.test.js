@@ -102,3 +102,28 @@ test('checkConfirm 破坏性操作缺确认时以 400 拒绝（SEC-10）', () =>
 test('checkConfirm 确认标记非 true 时拒绝', () => {
   assert.equal(checkConfirm(adapter.actions.uninstall, { confirm: 'yes' }).status, 400);
 });
+
+test('checkToken 多字节令牌不抛出而是拒绝', () => {
+  const actual = Buffer.alloc(64, 0xc3).toString('latin1');
+  assert.equal(checkToken(req({ 'x-token': actual }), generateToken()).status, 401);
+});
+
+test('checkAction 适配器未声明 actions 时以 400 拒绝', () => {
+  assert.equal(checkAction({}, 'update').status, 400);
+});
+
+test('checkAction 适配器为 null 时以 400 拒绝', () => {
+  assert.equal(checkAction(null, 'update').status, 400);
+});
+
+test('checkOrigin 允许来源未定义时仍拒绝', () => {
+  assert.equal(checkOrigin(req({}), undefined).status, 403);
+});
+
+test('checkConfirm 操作为 null 时拒绝', () => {
+  assert.equal(checkConfirm(null, { confirm: true }).status, 400);
+});
+
+test('checkConfirm 请求体为 null 时拒绝破坏性操作', () => {
+  assert.equal(checkConfirm(adapter.actions.uninstall, null).status, 400);
+});
