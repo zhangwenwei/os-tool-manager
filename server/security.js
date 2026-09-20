@@ -19,6 +19,9 @@ export function checkToken(req, expected) {
 }
 
 export function checkOrigin(req, allowedOrigins) {
+  if (!Array.isArray(allowedOrigins)) {
+    return deny(403, 'BAD_ORIGIN', '请求来源不被允许。');
+  }
   const origin = req.headers.origin;
   if (!origin || !allowedOrigins.includes(origin)) {
     return deny(403, 'BAD_ORIGIN', '请求来源不被允许。');

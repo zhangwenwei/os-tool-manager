@@ -293,9 +293,11 @@ test('适配器的下游失败返回 502 而非 500', async () => {
 });
 
 test('命令不存在返回 502 并提示 PATH', async () => {
-  const err = new Error('命令执行失败：brew');
-  err.code = 'ENOENT';
-  const adapter = fakeAdapter({ list: async () => { throw err; } });
+  // exec.js 对全部 spawn 失败一律包成 ExecError，此处构造与生产一致的形态
+  const { ExecError } = await import('../server/exec.js');
+  const adapter = fakeAdapter({
+    list: async () => { throw new ExecError('ENOENT', '命令执行失败：brew'); },
+  });
   const router = createRouter({ adapters: [adapter], token: TOKEN, allowedOrigins: [ORIGIN] });
   const res = await call(router, '/api/adapters/fake/items');
   assert.equal(res.statusCode, 502);
@@ -319,4 +321,33 @@ test('未知的异常仍返回 500', async () => {
   const res = await call(router, '/api/adapters/fake/items');
   assert.equal(res.statusCode, 500);
   assert.equal(res.body.error.code, 'INTERNAL');
+});
+
+test('资源耗尽类的 spawn 失败也归为 502', async () => {
+  const { ExecError } = await import('../server/exec.js');
+  const adapter = fakeAdapter({
+    list: async () => { throw new ExecError('EMFILE', '文件句柄耗尽'); },
+  });
+  const router = createRouter({ adapters: [adapter], token: TOKEN, allowedOrigins: [ORIGIN] });
+  const res = await call(router, '/api/adapters/fake/items');
+  assert.equal(res.statusCode, 502);
+  assert.equal(res.body.error.code, 'ADAPTER_FAILED');
+});
+
+test('操作缺少 destructive 时抛出', async () => {
+  const broken = {
+    id: 'nodest', label: 'X', detect: async () => true,
+    actions: { update: { label: '更新', run: async () => ({}) } },
+  };
+  const router = createRouter({ adapters: [broken], token: TOKEN, allowedOrigins: [ORIGIN] });
+  await assert.rejects(() => call(router, '/api/adapters'), (e) => e.message.includes('nodest'));
+});
+
+test('操作缺少 run 时抛出', async () => {
+  const broken = {
+    id: 'norun', label: 'X', detect: async () => true,
+    actions: { update: { label: '更新', destructive: false } },
+  };
+  const router = createRouter({ adapters: [broken], token: TOKEN, allowedOrigins: [ORIGIN] });
+  await assert.rejects(() => call(router, '/api/adapters'), (e) => e.message.includes('norun'));
 });

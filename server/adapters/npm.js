@@ -4,6 +4,9 @@ import { describe } from './descriptions.js';
 
 const DETECT_TIMEOUT_MS = 10000;
 
+// --long 是取得 description 的必要条件（FR-24）。
+export const LIST_ARGS = ['ls', '-g', '--depth=0', '--json', '--long'];
+
 export function parseGlobalList(stdout) {
   let data;
   try {
@@ -95,7 +98,7 @@ export default {
 
   async list() {
     const [list, outdated] = await Promise.all([
-      run('npm', ['ls', '-g', '--depth=0', '--json', '--long'], listOpts()),
+      run('npm', LIST_ARGS, listOpts()),
       run('npm', ['outdated', '-g', '--json'], listOpts()),
     ]);
     return buildList({ list, outdated });

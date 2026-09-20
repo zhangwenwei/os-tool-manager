@@ -139,3 +139,11 @@ test('checkOrigin 拒绝白名单外的来源', () => {
   assert.equal(checkOrigin(req({ origin: 'http://evil.example' }), allowed).status, 403);
   assert.equal(checkOrigin(req({ origin: 'http://localhost:9999' }), allowed).status, 403);
 });
+
+test('checkOrigin 的白名单非数组时拒绝，不做子串匹配', () => {
+  const asString = 'http://127.0.0.1:7788';
+  assert.equal(checkOrigin(req({ origin: 'http' }), asString).status, 403);
+  assert.equal(checkOrigin(req({ origin: asString }), asString).status, 403);
+  assert.equal(checkOrigin(req({ origin: asString }), undefined).status, 403);
+  assert.equal(checkOrigin(req({ origin: asString }), null).status, 403);
+});

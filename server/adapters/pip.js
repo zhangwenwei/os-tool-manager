@@ -47,7 +47,9 @@ export function buildItems(packages, outdated) {
         status: unknown ? 'unknown' : latest === pkg.current ? 'ok' : 'outdated',
         active: null,
         description: null,
-        requested: true,
+        // pip list --user 包含传递依赖，无法从中判别是否主动安装（需 --not-required）。
+        // 按要件书 7.2 节，无法判别时为 null，界面不显示「依赖」标签也不做相反的断言。
+        requested: null,
         actions: ['update', 'uninstall'],
       };
     });

@@ -203,8 +203,8 @@ class Card {
       showOutput(`${item.name} 的${meta.label}失败`, [e.message, e.detail]);
     } finally {
       row.classList.remove('busy');
+      await this.load();
     }
-    await this.load();
   }
 }
 

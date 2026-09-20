@@ -1,7 +1,6 @@
 import { checkToken, checkOrigin, checkAction, checkItemId, checkConfirm } from './security.js';
 import { AdapterError } from './adapters/base.js';
-
-const SPAWN_FAILURE_CODES = new Set(['ENOENT', 'EACCES', 'SPAWN_FAILED']);
+import { ExecError } from './exec.js';
 
 // 把异常分为「下游命令的预期失败」与「本服务的缺陷」。
 // 前者是断网、工具未安装、输出无法解析等运行时状况，重试或修环境可能有用；
@@ -10,7 +9,8 @@ function classifyFailure(e) {
   if (e.code === 'TIMEOUT') {
     return { status: 504, code: 'TIMEOUT', message: '命令执行超时。' };
   }
-  if (SPAWN_FAILURE_CODES.has(e.code)) {
+  // TIMEOUT 已在上面分流，其余 ExecError 都是子进程起不来或跑不动的环境状况。
+  if (e instanceof ExecError) {
     return { status: 502, code: 'ADAPTER_FAILED', message: '命令无法执行。请确认该工具已安装且在 PATH 中。' };
   }
   // BAD_ITEM_ID 意味着条目已通过白名单却仍无法解析，属适配器自身的缺陷，不归为下游失败。

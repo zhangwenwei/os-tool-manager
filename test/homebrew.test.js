@@ -174,3 +174,10 @@ test('依赖包标记为非主动安装', () => {
 test('cask 恒为主动安装', () => {
   assert.equal(byId('cask:iterm2').requested, true);
 });
+
+test('installed_on_request 字段缺失时 requested 为 null 而非臆断', () => {
+  const json = JSON.stringify({
+    formulae: [{ name: 'nofield', versions: { stable: '1' }, installed: [{ version: '1' }], linked_keg: '1', outdated: false }],
+  });
+  assert.equal(parseInstalled(json)[0].requested, null);
+});

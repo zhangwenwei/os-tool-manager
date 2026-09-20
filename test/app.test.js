@@ -97,3 +97,14 @@ test('其他启动错误原样打印并以 1 退出', () => {
   assert.equal(exitCode, 1);
   assert.equal(logged.length, 1);
 });
+
+test('以 api 开头但非 /api/ 的路径走静态处理', async () => {
+  let seen = null;
+  const handle = createRequestHandler({
+    handleApi: async () => { throw new Error('不应走到 API 处理'); },
+    handleStatic: async (req, res, pathname) => { seen = pathname; },
+    baseUrl: 'http://127.0.0.1:7788',
+  });
+  await handle({ url: '/apixyz.js' }, { writeHead() {}, end() {}, headersSent: false });
+  assert.equal(seen, '/apixyz.js');
+});
