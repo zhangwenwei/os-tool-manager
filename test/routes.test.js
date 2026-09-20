@@ -262,10 +262,22 @@ test('响应带 no-store 缓存头', async () => {
   assert.equal(res.headers['cache-control'], 'no-store');
 });
 
-test('适配器声明缺失时抛出而非静默从清单消失', async () => {
+test('适配器声明缺失时抛出且指名是哪个适配器', async () => {
   const broken = { id: 'broken', label: 'Broken', detect: async () => true };
   const router = createRouter({ adapters: [broken], token: TOKEN, allowedOrigins: [ORIGIN] });
-  await assert.rejects(() => call(router, '/api/adapters'));
+  await assert.rejects(() => call(router, '/api/adapters'), (e) => e.message.includes('broken'));
+});
+
+test('操作声明不完整时抛出且指名是哪个操作', async () => {
+  const broken = {
+    id: 'half', label: 'Half', detect: async () => true,
+    actions: { update: { label: '更新' } },
+  };
+  const router = createRouter({ adapters: [broken], token: TOKEN, allowedOrigins: [ORIGIN] });
+  await assert.rejects(
+    () => call(router, '/api/adapters'),
+    (e) => e.message.includes('half') && e.message.includes('update')
+  );
 });
 
 test('适配器的下游失败返回 502 而非 500', async () => {

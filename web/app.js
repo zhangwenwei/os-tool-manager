@@ -85,7 +85,7 @@ class Card {
   }
 
   async load() {
-    this.refreshBtn.disabled = true;
+    this.setBusy(true);
     this.countEl.textContent = '取得中…';
     if (this.items === null) {
       this.bodyEl.replaceChildren(this.message('取得中…'));
@@ -106,7 +106,7 @@ class Card {
       );
       this.items = null;
     } finally {
-      this.refreshBtn.disabled = false;
+      this.setBusy(false);
     }
   }
 
@@ -187,7 +187,6 @@ class Card {
       showOutput(`${item.name} 的${meta.label}失败`, [e.message, e.detail]);
     } finally {
       row.classList.remove('busy');
-      this.setBusy(false);
     }
     await this.load();
   }

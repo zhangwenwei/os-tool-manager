@@ -50,8 +50,18 @@ function safeDecode(segment) {
 }
 
 function publicActions(adapter) {
+  if (!adapter.actions || typeof adapter.actions !== 'object') {
+    throw new Error(`适配器 ${adapter.id} 未声明 actions。`);
+  }
   const out = {};
   for (const [key, action] of Object.entries(adapter.actions)) {
+    if (
+      typeof action?.label !== 'string'
+      || typeof action?.destructive !== 'boolean'
+      || typeof action?.run !== 'function'
+    ) {
+      throw new Error(`适配器 ${adapter.id} 的操作 ${key} 声明不完整。`);
+    }
     out[key] = { label: action.label, destructive: action.destructive };
   }
   return out;
