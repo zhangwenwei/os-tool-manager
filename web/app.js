@@ -136,7 +136,9 @@ class Card {
 
     const ver = document.createElement('span');
     ver.className = 'ver';
-    ver.textContent = item.status === 'outdated' ? `${item.current} → ${item.latest}` : item.current;
+    if (item.status === 'outdated') ver.textContent = `${item.current} → ${item.latest}`;
+    else if (item.status === 'unknown') ver.textContent = `${item.current ?? '—'} → 未知`;
+    else ver.textContent = item.current;
 
     const badge = document.createElement('span');
     badge.className = `badge ${item.status}`;
@@ -176,7 +178,10 @@ class Card {
         { method: 'POST', body: JSON.stringify(body) }
       );
       if (!result.ok) {
-        showOutput(`${item.name} 的${meta.label}失败`, [result.stdout, result.stderr]);
+        const head = `退出码 ${result.exitCode ?? '—'}`
+          + (result.signal ? ` / 信号 ${result.signal}` : '')
+          + (result.truncated ? '（输出已截断）' : '');
+        showOutput(`${item.name} 的${meta.label}失败`, [head, result.stdout, result.stderr]);
       }
     } catch (e) {
       showOutput(`${item.name} 的${meta.label}失败`, [e.message, e.detail]);

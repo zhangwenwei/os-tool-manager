@@ -169,3 +169,10 @@ test('run 被信号终止时记录 signal', async () => {
   assert.equal(r.exitCode, null);
   assert.equal(r.signal, 'SIGTERM');
 });
+
+test('run 超时时错误携带已收集的输出（FR-21）', async () => {
+  await assert.rejects(
+    () => run('sh', ['-c', 'echo 编译日志; echo 警告 >&2; sleep 30'], { timeoutMs: 400, maxBytes: 4096 }),
+    (e) => e.code === 'TIMEOUT' && e.detail.includes('编译日志') && e.detail.includes('警告')
+  );
+});

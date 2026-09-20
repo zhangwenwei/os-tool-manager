@@ -111,7 +111,11 @@ export function run(command, args, options = {}) {
     let graceTimer = null;
 
     const timeoutError = () =>
-      new ExecError('TIMEOUT', `命令超时（${timeoutMs}ms）：${command}`);
+      new ExecError(
+        'TIMEOUT',
+        `命令超时（${timeoutMs}ms）：${command}`,
+        [out.result().text, err.result().text].filter((s) => s.trim()).join('\n\n') || null
+      );
 
     const finish = (fn, value) => {
       if (settled) return;

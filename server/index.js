@@ -47,6 +47,8 @@ server.listen(config.PORT, '127.0.0.1', () => {
   console.log('os-tool-manager 已启动');
   console.log(url);
   if (config.AUTO_OPEN_BROWSER) {
-    spawn('open', [url], { stdio: 'ignore', detached: true }).unref();
+    const opener = spawn('open', [url], { stdio: 'ignore', detached: true });
+    opener.on('error', () => {});
+    opener.unref();
   }
 });
