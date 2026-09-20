@@ -1,4 +1,4 @@
-import { checkToken } from './security.js';
+import { checkToken, checkOrigin, checkAction, checkItemId, checkConfirm } from './security.js';
 
 function send(res, status, body) {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8' });
@@ -23,6 +23,32 @@ function publicActions(adapter) {
     out[key] = { label: action.label, destructive: action.destructive };
   }
   return out;
+}
+
+function readBody(req, limit = 64 * 1024) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let length = 0;
+    req.on('data', (c) => {
+      length += c.length;
+      if (length > limit) {
+        reject(new Error('request body too large'));
+        return;
+      }
+      chunks.push(c);
+    });
+    req.on('end', () => {
+      const text = Buffer.concat(chunks).toString('utf8');
+      if (!text) return resolve({});
+      try {
+        const parsed = JSON.parse(text);
+        resolve(parsed && typeof parsed === 'object' ? parsed : {});
+      } catch {
+        reject(new Error('invalid json'));
+      }
+    });
+    req.on('error', reject);
+  });
 }
 
 export function createRouter({ adapters, token, origin }) {
@@ -61,6 +87,49 @@ export function createRouter({ adapters, token, origin }) {
       } catch (e) {
         if (e.code === 'TIMEOUT') return fail(res, 504, 'TIMEOUT', e.message, e.detail ?? null);
         return fail(res, 500, 'INTERNAL', '条目清单取得失败。', e.detail ?? e.message);
+      }
+    }
+
+    const actionMatch = pathname.match(/^\/api\/adapters\/([^/]+)\/actions\/([^/]+)$/);
+    if (req.method === 'POST' && actionMatch) {
+      const originErr = checkOrigin(req, origin);
+      if (originErr) return fail(res, originErr.status, originErr.code, originErr.message);
+
+      const adapter = byId(safeDecode(actionMatch[1]));
+      if (!adapter) return fail(res, 404, 'UNKNOWN_ADAPTER', '未知的生态。');
+
+      const actionKey = safeDecode(actionMatch[2]);
+      const actionErr = checkAction(adapter, actionKey);
+      if (actionErr) return fail(res, actionErr.status, actionErr.code, actionErr.message);
+      const action = adapter.actions[actionKey];
+
+      let body;
+      try {
+        body = await readBody(req);
+      } catch {
+        return fail(res, 400, 'BAD_BODY', '请求体无法解析。');
+      }
+
+      const items = known.get(adapter.id);
+      const idErr = checkItemId(items, body.itemId);
+      if (idErr) return fail(res, idErr.status, idErr.code, idErr.message);
+
+      const confirmErr = checkConfirm(action, body);
+      if (confirmErr) return fail(res, confirmErr.status, confirmErr.code, confirmErr.message);
+
+      if (busy.has(adapter.id)) {
+        return fail(res, 409, 'BUSY', '该生态已有操作正在执行，请稍候。');
+      }
+
+      busy.add(adapter.id);
+      try {
+        const result = await action.run(items.get(body.itemId));
+        return send(res, 200, result);
+      } catch (e) {
+        if (e.code === 'TIMEOUT') return fail(res, 504, 'TIMEOUT', e.message, e.detail ?? null);
+        return fail(res, 500, 'INTERNAL', '操作执行中发生错误。', e.detail ?? e.message);
+      } finally {
+        busy.delete(adapter.id);
       }
     }
 

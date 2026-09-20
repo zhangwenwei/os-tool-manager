@@ -119,3 +119,99 @@ test('GET items 其他异常时返回 500', async () => {
   assert.equal(res.statusCode, 500);
   assert.equal(res.body.error.code, 'INTERNAL');
 });
+
+const POST = (body) => ({ method: 'POST', headers: { origin: ORIGIN }, body });
+
+// 操作前必须先取得清单，否则 SEC-09 会拒绝
+async function primed(adapter) {
+  const router = createRouter({ adapters: [adapter], token: TOKEN, origin: ORIGIN });
+  await call(router, '/api/adapters/fake/items');
+  return router;
+}
+
+test('POST action 正常执行并返回 ActionResult', async () => {
+  const router = await primed(fakeAdapter());
+  const res = await call(router, '/api/adapters/fake/actions/update', POST({ itemId: 'pkg-a' }));
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.ok, true);
+  assert.equal(res.body.stdout, 'updated');
+});
+
+test('POST action 破坏性操作带确认时执行（SEC-10）', async () => {
+  const router = await primed(fakeAdapter());
+  const res = await call(router, '/api/adapters/fake/actions/uninstall', POST({ itemId: 'pkg-a', confirm: true }));
+  assert.equal(res.statusCode, 200);
+});
+
+test('POST action 破坏性操作缺确认时以 400 拒绝（SEC-10）', async () => {
+  const router = await primed(fakeAdapter());
+  const res = await call(router, '/api/adapters/fake/actions/uninstall', POST({ itemId: 'pkg-a' }));
+  assert.equal(res.statusCode, 400);
+  assert.equal(res.body.error.code, 'CONFIRM_REQUIRED');
+});
+
+test('POST action Origin 缺失时以 403 拒绝（SEC-07）', async () => {
+  const router = await primed(fakeAdapter());
+  const res = await call(router, '/api/adapters/fake/actions/update', { method: 'POST', body: { itemId: 'pkg-a' } });
+  assert.equal(res.statusCode, 403);
+  assert.equal(res.body.error.code, 'BAD_ORIGIN');
+});
+
+test('POST action 未声明的操作以 400 拒绝（SEC-08）', async () => {
+  const router = await primed(fakeAdapter());
+  const res = await call(router, '/api/adapters/fake/actions/evil', POST({ itemId: 'pkg-a' }));
+  assert.equal(res.statusCode, 400);
+  assert.equal(res.body.error.code, 'UNKNOWN_ACTION');
+});
+
+test('POST action 未知条目 ID 以 409 拒绝（SEC-09）', async () => {
+  const router = await primed(fakeAdapter());
+  const res = await call(router, '/api/adapters/fake/actions/update', POST({ itemId: 'not-listed' }));
+  assert.equal(res.statusCode, 409);
+  assert.equal(res.body.error.code, 'STALE_ITEM');
+});
+
+test('POST action 清单未取得时以 409 拒绝（SEC-09）', async () => {
+  const router = createRouter({ adapters: [fakeAdapter()], token: TOKEN, origin: ORIGIN });
+  const res = await call(router, '/api/adapters/fake/actions/update', POST({ itemId: 'pkg-a' }));
+  assert.equal(res.statusCode, 409);
+});
+
+test('POST action 同一生态并发时以 409 BUSY 拒绝（FR-19）', async () => {
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  const adapter = fakeAdapter();
+  adapter.actions.update.run = async () => {
+    await gate;
+    return { ok: true, exitCode: 0, stdout: '', stderr: '', truncated: false };
+  };
+  const router = await primed(adapter);
+
+  const first = call(router, '/api/adapters/fake/actions/update', POST({ itemId: 'pkg-a' }));
+  await new Promise((r) => setImmediate(r));
+  const second = await call(router, '/api/adapters/fake/actions/update', POST({ itemId: 'pkg-a' }));
+
+  assert.equal(second.statusCode, 409);
+  assert.equal(second.body.error.code, 'BUSY');
+
+  release();
+  const firstRes = await first;
+  assert.equal(firstRes.statusCode, 200);
+});
+
+test('POST action 执行结束后解除排他（FR-19）', async () => {
+  const router = await primed(fakeAdapter());
+  await call(router, '/api/adapters/fake/actions/update', POST({ itemId: 'pkg-a' }));
+  const res = await call(router, '/api/adapters/fake/actions/update', POST({ itemId: 'pkg-a' }));
+  assert.equal(res.statusCode, 200);
+});
+
+test('POST action 失败时也解除排他（FR-19）', async () => {
+  const adapter = fakeAdapter();
+  adapter.actions.update.run = async () => { throw new Error('boom'); };
+  const router = await primed(adapter);
+  const first = await call(router, '/api/adapters/fake/actions/update', POST({ itemId: 'pkg-a' }));
+  assert.equal(first.statusCode, 500);
+  const second = await call(router, '/api/adapters/fake/actions/update', POST({ itemId: 'pkg-a' }));
+  assert.equal(second.statusCode, 500);
+});
