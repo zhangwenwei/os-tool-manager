@@ -1,4 +1,31 @@
 <!doctype html>
-<meta charset="utf-8">
-<title>os-tool-manager</title>
-<p>启动确认用占位页面。</p>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>os-tool-manager</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <h1>os-tool-manager</h1>
+    <p id="status">读取中…</p>
+  </header>
+  <main id="cards"></main>
+  <dialog id="confirm-dialog">
+    <p id="confirm-text"></p>
+    <form method="dialog">
+      <menu>
+        <button value="cancel">取消</button>
+        <button value="ok" class="danger">执行</button>
+      </menu>
+    </form>
+  </dialog>
+  <dialog id="output-dialog">
+    <h2 id="output-title"></h2>
+    <pre id="output-body"></pre>
+    <form method="dialog"><menu><button value="close">关闭</button></menu></form>
+  </dialog>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
