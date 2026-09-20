@@ -11,19 +11,19 @@ export class AdapterError extends Error {
 
 export function listOpts() {
   const c = getConfig();
-  return { timeoutMs: c.LIST_TIMEOUT_MS, maxBytes: c.MAX_OUTPUT_BYTES };
+  return { timeoutMs: c.LIST_TIMEOUT_MS, maxBytes: c.LIST_MAX_OUTPUT_BYTES };
 }
 
 export function actionOpts() {
   const c = getConfig();
-  return { timeoutMs: c.ACTION_TIMEOUT_MS, maxBytes: c.MAX_OUTPUT_BYTES };
+  return { timeoutMs: c.ACTION_TIMEOUT_MS, maxBytes: c.ACTION_MAX_OUTPUT_BYTES };
 }
 
 export function assertNotTruncated(result, what) {
   if (result.truncated) {
     throw new AdapterError(
       'LIST_TRUNCATED',
-      `${what} 的输出超过 MAX_OUTPUT_BYTES 的上限，无法解析。请在 .env 中调大该项。`
+      `${what} 的输出超过 LIST_MAX_OUTPUT_BYTES 的上限，无法解析。请在 .env 中调大该项。`
     );
   }
 }

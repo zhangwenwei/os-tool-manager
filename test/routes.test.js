@@ -51,7 +51,7 @@ async function call(router, pathname, reqOptions) {
 }
 
 test('GET /api/adapters 返回可用生态', async () => {
-  const router = createRouter({ adapters: [fakeAdapter()], token: TOKEN, origin: ORIGIN });
+  const router = createRouter({ adapters: [fakeAdapter()], token: TOKEN, allowedOrigins: [ORIGIN] });
   const res = await call(router, '/api/adapters');
   assert.equal(res.statusCode, 200);
   assert.deepEqual(res.body.adapters, [
@@ -60,7 +60,7 @@ test('GET /api/adapters 返回可用生态', async () => {
 });
 
 test('探测返回 false 的生态被排除（FR-02）', async () => {
-  const router = createRouter({ adapters: [fakeAdapter({ detect: async () => false })], token: TOKEN, origin: ORIGIN });
+  const router = createRouter({ adapters: [fakeAdapter({ detect: async () => false })], token: TOKEN, allowedOrigins: [ORIGIN] });
   const res = await call(router, '/api/adapters');
   assert.deepEqual(res.body.adapters, []);
 });
@@ -68,28 +68,28 @@ test('探测返回 false 的生态被排除（FR-02）', async () => {
 test('探测抛出异常的生态被排除且不影响其他（FR-03）', async () => {
   const bad = fakeAdapter({ id: 'bad', detect: async () => { throw new Error('boom'); } });
   const good = fakeAdapter({ id: 'good' });
-  const router = createRouter({ adapters: [bad, good], token: TOKEN, origin: ORIGIN });
+  const router = createRouter({ adapters: [bad, good], token: TOKEN, allowedOrigins: [ORIGIN] });
   const res = await call(router, '/api/adapters');
   assert.equal(res.statusCode, 200);
   assert.deepEqual(res.body.adapters.map(a => a.id), ['good']);
 });
 
 test('令牌无效时以 401 拒绝（SEC-06）', async () => {
-  const router = createRouter({ adapters: [fakeAdapter()], token: TOKEN, origin: ORIGIN });
+  const router = createRouter({ adapters: [fakeAdapter()], token: TOKEN, allowedOrigins: [ORIGIN] });
   const res = await call(router, '/api/adapters', { headers: { 'x-token': 'b'.repeat(64) } });
   assert.equal(res.statusCode, 401);
   assert.equal(res.body.error.code, 'INVALID_TOKEN');
 });
 
 test('未知端点返回 404', async () => {
-  const router = createRouter({ adapters: [fakeAdapter()], token: TOKEN, origin: ORIGIN });
+  const router = createRouter({ adapters: [fakeAdapter()], token: TOKEN, allowedOrigins: [ORIGIN] });
   const res = await call(router, '/api/nope');
   assert.equal(res.statusCode, 404);
   assert.equal(res.body.error.code, 'NOT_FOUND');
 });
 
 test('GET items 返回条目清单', async () => {
-  const router = createRouter({ adapters: [fakeAdapter()], token: TOKEN, origin: ORIGIN });
+  const router = createRouter({ adapters: [fakeAdapter()], token: TOKEN, allowedOrigins: [ORIGIN] });
   const res = await call(router, '/api/adapters/fake/items');
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.items.length, 1);
@@ -97,7 +97,7 @@ test('GET items 返回条目清单', async () => {
 });
 
 test('GET items 未知生态返回 404', async () => {
-  const router = createRouter({ adapters: [fakeAdapter()], token: TOKEN, origin: ORIGIN });
+  const router = createRouter({ adapters: [fakeAdapter()], token: TOKEN, allowedOrigins: [ORIGIN] });
   const res = await call(router, '/api/adapters/nope/items');
   assert.equal(res.statusCode, 404);
   assert.equal(res.body.error.code, 'UNKNOWN_ADAPTER');
@@ -106,7 +106,7 @@ test('GET items 未知生态返回 404', async () => {
 test('GET items 超时时返回 504', async () => {
   const err = new Error('timeout'); err.code = 'TIMEOUT';
   const adapter = fakeAdapter({ list: async () => { throw err; } });
-  const router = createRouter({ adapters: [adapter], token: TOKEN, origin: ORIGIN });
+  const router = createRouter({ adapters: [adapter], token: TOKEN, allowedOrigins: [ORIGIN] });
   const res = await call(router, '/api/adapters/fake/items');
   assert.equal(res.statusCode, 504);
   assert.equal(res.body.error.code, 'TIMEOUT');
@@ -114,7 +114,7 @@ test('GET items 超时时返回 504', async () => {
 
 test('GET items 其他异常时返回 500', async () => {
   const adapter = fakeAdapter({ list: async () => { throw new Error('boom'); } });
-  const router = createRouter({ adapters: [adapter], token: TOKEN, origin: ORIGIN });
+  const router = createRouter({ adapters: [adapter], token: TOKEN, allowedOrigins: [ORIGIN] });
   const res = await call(router, '/api/adapters/fake/items');
   assert.equal(res.statusCode, 500);
   assert.equal(res.body.error.code, 'INTERNAL');
@@ -124,7 +124,7 @@ const POST = (body) => ({ method: 'POST', headers: { origin: ORIGIN }, body });
 
 // 操作前必须先取得清单，否则 SEC-09 会拒绝
 async function primed(adapter) {
-  const router = createRouter({ adapters: [adapter], token: TOKEN, origin: ORIGIN });
+  const router = createRouter({ adapters: [adapter], token: TOKEN, allowedOrigins: [ORIGIN] });
   await call(router, '/api/adapters/fake/items');
   return router;
 }
@@ -173,7 +173,7 @@ test('POST action 未知条目 ID 以 409 拒绝（SEC-09）', async () => {
 });
 
 test('POST action 清单未取得时以 409 拒绝（SEC-09）', async () => {
-  const router = createRouter({ adapters: [fakeAdapter()], token: TOKEN, origin: ORIGIN });
+  const router = createRouter({ adapters: [fakeAdapter()], token: TOKEN, allowedOrigins: [ORIGIN] });
   const res = await call(router, '/api/adapters/fake/actions/update', POST({ itemId: 'pkg-a' }));
   assert.equal(res.statusCode, 409);
   assert.equal(res.body.error.code, 'STALE_ITEM');
@@ -257,14 +257,14 @@ test('POST action 传给 run 的是条目对象而非 ID', async () => {
 });
 
 test('响应带 no-store 缓存头', async () => {
-  const router = createRouter({ adapters: [fakeAdapter()], token: TOKEN, origin: ORIGIN });
+  const router = createRouter({ adapters: [fakeAdapter()], token: TOKEN, allowedOrigins: [ORIGIN] });
   const res = await call(router, '/api/adapters/fake/items');
   assert.equal(res.headers['cache-control'], 'no-store');
 });
 
 test('适配器声明缺失时抛出而非静默从清单消失', async () => {
   const broken = { id: 'broken', label: 'Broken', detect: async () => true };
-  const router = createRouter({ adapters: [broken], token: TOKEN, origin: ORIGIN });
+  const router = createRouter({ adapters: [broken], token: TOKEN, allowedOrigins: [ORIGIN] });
   await assert.rejects(() => call(router, '/api/adapters'));
 });
 
@@ -273,7 +273,7 @@ test('适配器的下游失败返回 502 而非 500', async () => {
   const adapter = fakeAdapter({
     list: async () => { throw new AdapterError('LIST_FAILED', 'brew 连不上网'); },
   });
-  const router = createRouter({ adapters: [adapter], token: TOKEN, origin: ORIGIN });
+  const router = createRouter({ adapters: [adapter], token: TOKEN, allowedOrigins: [ORIGIN] });
   const res = await call(router, '/api/adapters/fake/items');
   assert.equal(res.statusCode, 502);
   assert.equal(res.body.error.code, 'ADAPTER_FAILED');
@@ -284,7 +284,7 @@ test('命令不存在返回 502 并提示 PATH', async () => {
   const err = new Error('命令执行失败：brew');
   err.code = 'ENOENT';
   const adapter = fakeAdapter({ list: async () => { throw err; } });
-  const router = createRouter({ adapters: [adapter], token: TOKEN, origin: ORIGIN });
+  const router = createRouter({ adapters: [adapter], token: TOKEN, allowedOrigins: [ORIGIN] });
   const res = await call(router, '/api/adapters/fake/items');
   assert.equal(res.statusCode, 502);
   assert.match(res.body.error.message, /PATH/);
@@ -295,7 +295,7 @@ test('适配器自身的缺陷仍返回 500', async () => {
   const adapter = fakeAdapter({
     list: async () => { throw new AdapterError('BAD_ITEM_ID', '条目 ID 无法解析'); },
   });
-  const router = createRouter({ adapters: [adapter], token: TOKEN, origin: ORIGIN });
+  const router = createRouter({ adapters: [adapter], token: TOKEN, allowedOrigins: [ORIGIN] });
   const res = await call(router, '/api/adapters/fake/items');
   assert.equal(res.statusCode, 500);
   assert.equal(res.body.error.code, 'INTERNAL');
@@ -303,7 +303,7 @@ test('适配器自身的缺陷仍返回 500', async () => {
 
 test('未知的异常仍返回 500', async () => {
   const adapter = fakeAdapter({ list: async () => { throw new Error('boom'); } });
-  const router = createRouter({ adapters: [adapter], token: TOKEN, origin: ORIGIN });
+  const router = createRouter({ adapters: [adapter], token: TOKEN, allowedOrigins: [ORIGIN] });
   const res = await call(router, '/api/adapters/fake/items');
   assert.equal(res.statusCode, 500);
   assert.equal(res.body.error.code, 'INTERNAL');

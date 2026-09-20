@@ -37,7 +37,7 @@ async function withServer(fn) {
   });
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   const origin = `http://127.0.0.1:${server.address().port}`;
-  router = createRouter({ adapters: [fakeAdapter()], token: TOKEN, origin });
+  router = createRouter({ adapters: [fakeAdapter()], token: TOKEN, allowedOrigins: [origin] });
   try {
     await fn(origin);
   } finally {

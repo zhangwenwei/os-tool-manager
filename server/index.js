@@ -13,14 +13,18 @@ const root = join(here, '..');
 
 const config = getConfig();
 const token = generateToken();
-const origin = `http://127.0.0.1:${config.PORT}`;
+const baseUrl = `http://127.0.0.1:${config.PORT}`;
+// localhost 是浏览器保留名，必定解析到回环地址；跨站攻击者的 Origin 会是其自身域名，
+// 不会是 localhost。故同时允许这两者不削弱 SEC-07 的防护，而能避免使用者手输
+// localhost 时所有操作都 403 却得不到解释。
+const allowedOrigins = [baseUrl, `http://localhost:${config.PORT}`];
 
-const handleApi = createRouter({ adapters, token, origin });
+const handleApi = createRouter({ adapters, token, allowedOrigins });
 const handleStatic = createStatic(join(root, 'web'));
 
 const server = createServer(async (req, res) => {
   try {
-    const pathname = new URL(req.url, origin).pathname;
+    const pathname = new URL(req.url, baseUrl).pathname;
     if (pathname.startsWith('/api/')) {
       await handleApi(req, res, pathname);
     } else {
@@ -43,7 +47,7 @@ server.on('error', (err) => {
 });
 
 server.listen(config.PORT, '127.0.0.1', () => {
-  const url = `${origin}/?token=${token}`;
+  const url = `${baseUrl}/?token=${token}`;
   console.log('os-tool-manager 已启动');
   console.log(url);
   if (config.AUTO_OPEN_BROWSER) {

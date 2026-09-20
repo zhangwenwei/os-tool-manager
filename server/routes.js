@@ -88,7 +88,7 @@ function readBody(req, limit = 64 * 1024) {
   });
 }
 
-export function createRouter({ adapters, token, origin }) {
+export function createRouter({ adapters, token, allowedOrigins }) {
   const listedItems = new Map();
   const busy = new Set();
 
@@ -131,7 +131,7 @@ export function createRouter({ adapters, token, origin }) {
 
     const actionMatch = pathname.match(/^\/api\/adapters\/([^/]+)\/actions\/([^/]+)$/);
     if (req.method === 'POST' && actionMatch) {
-      const originErr = checkOrigin(req, origin);
+      const originErr = checkOrigin(req, allowedOrigins);
       if (originErr) return fail(res, originErr.status, originErr.code, originErr.message);
 
       const adapter = byId(safeDecode(actionMatch[1]));

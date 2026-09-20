@@ -169,3 +169,13 @@ test('loadConfig 非 ENOENT 错误时警告并采用默认值', () => {
 test('getConfig 记忆化，多次调用返回同一对象', () => {
   assert.strictEqual(getConfig(), getConfig());
 });
+
+test('清单与操作的输出预算是独立的配置项', () => {
+  const cfg = buildConfig({ LIST_MAX_OUTPUT_BYTES: '2048' });
+  assert.equal(cfg.LIST_MAX_OUTPUT_BYTES, 2048);
+  assert.equal(cfg.ACTION_MAX_OUTPUT_BYTES, DEFAULTS.ACTION_MAX_OUTPUT_BYTES);
+});
+
+test('清单的输出预算默认大于操作的输出预算', () => {
+  assert.ok(DEFAULTS.LIST_MAX_OUTPUT_BYTES > DEFAULTS.ACTION_MAX_OUTPUT_BYTES);
+});

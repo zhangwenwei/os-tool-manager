@@ -18,9 +18,9 @@ export function checkToken(req, expected) {
     : deny(401, 'INVALID_TOKEN', '访问令牌无效。');
 }
 
-export function checkOrigin(req, allowedOrigin) {
+export function checkOrigin(req, allowedOrigins) {
   const origin = req.headers.origin;
-  if (!origin || origin !== allowedOrigin) {
+  if (!origin || !allowedOrigins.includes(origin)) {
     return deny(403, 'BAD_ORIGIN', '请求来源不被允许。');
   }
   return null;

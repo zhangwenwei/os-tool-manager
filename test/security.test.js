@@ -39,17 +39,17 @@ test('checkToken 长度不同时不抛出', () => {
 
 test('checkOrigin 一致时通过', () => {
   const o = 'http://127.0.0.1:7788';
-  assert.equal(checkOrigin(req({ origin: o }), o), null);
+  assert.equal(checkOrigin(req({ origin: o }), [o]), null);
 });
 
 test('checkOrigin 缺失时以 403 拒绝（SEC-07）', () => {
-  const e = checkOrigin(req({}), 'http://127.0.0.1:7788');
+  const e = checkOrigin(req({}), ['http://127.0.0.1:7788']);
   assert.equal(e.status, 403);
   assert.equal(e.code, 'BAD_ORIGIN');
 });
 
 test('checkOrigin 不一致时以 403 拒绝', () => {
-  const e = checkOrigin(req({ origin: 'http://evil.example' }), 'http://127.0.0.1:7788');
+  const e = checkOrigin(req({ origin: 'http://evil.example' }), ['http://127.0.0.1:7788']);
   assert.equal(e.status, 403);
 });
 
@@ -117,7 +117,7 @@ test('checkAction 适配器为 null 时以 400 拒绝', () => {
 });
 
 test('checkOrigin 允许来源未定义时仍拒绝', () => {
-  assert.equal(checkOrigin(req({}), undefined).status, 403);
+  assert.equal(checkOrigin(req({}), []).status, 403);
 });
 
 test('checkConfirm 操作为 null 时拒绝', () => {
@@ -126,4 +126,16 @@ test('checkConfirm 操作为 null 时拒绝', () => {
 
 test('checkConfirm 请求体为 null 时拒绝破坏性操作', () => {
   assert.equal(checkConfirm(adapter.actions.uninstall, null).status, 400);
+});
+
+test('checkOrigin 允许白名单中的任一来源', () => {
+  const allowed = ['http://127.0.0.1:7788', 'http://localhost:7788'];
+  assert.equal(checkOrigin(req({ origin: 'http://127.0.0.1:7788' }), allowed), null);
+  assert.equal(checkOrigin(req({ origin: 'http://localhost:7788' }), allowed), null);
+});
+
+test('checkOrigin 拒绝白名单外的来源', () => {
+  const allowed = ['http://127.0.0.1:7788', 'http://localhost:7788'];
+  assert.equal(checkOrigin(req({ origin: 'http://evil.example' }), allowed).status, 403);
+  assert.equal(checkOrigin(req({ origin: 'http://localhost:9999' }), allowed).status, 403);
 });

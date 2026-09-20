@@ -6,7 +6,8 @@ export const DEFAULTS = Object.freeze({
   PORT: 7788,
   LIST_TIMEOUT_MS: 60000,
   ACTION_TIMEOUT_MS: 600000,
-  MAX_OUTPUT_BYTES: 1048576,
+  LIST_MAX_OUTPUT_BYTES: 16777216,
+  ACTION_MAX_OUTPUT_BYTES: 1048576,
   AUTO_OPEN_BROWSER: true,
 });
 
@@ -14,7 +15,8 @@ const RANGES = {
   PORT: { min: 1, max: 65535 },
   LIST_TIMEOUT_MS: { min: 1000, max: 86400000 },
   ACTION_TIMEOUT_MS: { min: 1000, max: 86400000 },
-  MAX_OUTPUT_BYTES: { min: 1024, max: 1073741824 },
+  LIST_MAX_OUTPUT_BYTES: { min: 1024, max: 1073741824 },
+  ACTION_MAX_OUTPUT_BYTES: { min: 1024, max: 1073741824 },
 };
 
 const TRUE_VALUES = new Set(['true', '1', 'yes', 'on']);
