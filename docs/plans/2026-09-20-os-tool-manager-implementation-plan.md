@@ -10,7 +10,34 @@
 
 > 本文档中的命令均以仓库根目录为工作目录。原始记录中的绝对路径已在公开前替换。
 
-**要件定义书:** `docs/specs/2026-09-20-os-tool-manager-requirements.md` v3.0
+**要件定义书:** `docs/specs/2026-09-20-os-tool-manager-requirements.md` v3.1（要件内容与制定时的 v3.0 相同）
+
+---
+
+## 实装完成状态（2026-09-21 补记）
+
+**Task 1～12 已全部实装完成。** 全部 checkbox 已勾选，`npm test` 219 件全绿。本计划作为历史记录保留 —— 正文的代码块是**初版设计**，不反映最终实装。
+
+以下为计划与最终实装的关键偏差（评审后的修正未回写正文）：
+
+| 计划中的写法 | 最终实装 |
+|---|---|
+| `commandArgs(subcommand, itemId)` | `actionArgs(...)`，Homebrew / npm / pip 各自实现，签名不同 |
+| `MAX_OUTPUT_BYTES` | 拆为 `LIST_MAX_OUTPUT_BYTES`（16 MiB）与 `ACTION_MAX_OUTPUT_BYTES`（1 MiB） |
+| Homebrew 用 `brew list --versions` + `brew outdated --json=v2` | 改用 `brew info --json=v2 --installed` 单一数据源 |
+| npm 用 `npm ls -g --depth=0 --json` | 增加 `--long`（取得 description，FR-24） |
+| `createRouter({ adapters, token, origin, config })` | `createRouter({ adapters, token, allowedOrigins })` |
+| `server/index.js` 含请求分发与启动错误处理 | 抽出 `server/app.js`，`index.js` 只剩接线 |
+| 令牌比较用 `timingSafeEqual` 直接比 | 先取 SHA-256 摘要再比较（消除多字节请求头导致的异常） |
+
+计划外的追加文件：
+
+- `server/app.js` —— 请求分发与启动错误处理，NFR-13 / NFR-14 的测试载体
+- `server/adapters/base.js` —— 适配器共通基础（`AdapterError`、超时与输出预算、输出守卫）
+- `server/adapters/descriptions.js` —— 中文简介词典（FR-24）
+- `test/fixtures/` —— 真实命令输出样本
+
+FR-24 / FR-25（中文简介与依赖标记）为计划完成后追加的要件。各任务内已有的「实装后的修订」注记记录了该处的偏离原因，可对照阅读。
 
 ---
 
@@ -76,7 +103,7 @@ formula 与 cask 的包名可能重复，而 Item.id 须在生态内唯一（7.2
 - Create: `server/config.js`
 - Test: `test/config.test.js`
 
-- [ ] **Step 1: 创建 `package.json`**
+- [x] **Step 1: 创建 `package.json`**
 
 ```json
 {
@@ -96,7 +123,7 @@ formula 与 cask 的包名可能重复，而 Item.id 须在生态内唯一（7.2
 
 > 测试脚本使用 glob 而非 `node --test test/`：本机 Node v25.9.0 会把目录参数当作 CJS 入口模块去 require，报 `Cannot find module '.../test'`。单文件形式（`node --test test/xxx.test.js`）正常。
 
-- [ ] **Step 2: 写失败的测试**
+- [x] **Step 2: 写失败的测试**
 
 创建 `test/config.test.js`：
 
@@ -142,7 +169,7 @@ test('buildConfig 忽略未知键', () => {
 });
 ```
 
-- [ ] **Step 3: 运行测试确认失败**
+- [x] **Step 3: 运行测试确认失败**
 
 ```bash
 npm test
@@ -152,7 +179,7 @@ Expected: FAIL，`Cannot find module '.../server/config.js'`
 
 > **实装后的修订（代码评审对应）**：本节代码为初版。实际实装在评审后追加了数值项的整数与取值域校验、布尔项的严格解析、`.env` 值的引号剥离、无效值警告、`loadConfig` 的 ENOENT 与其他错误的区分，以及记忆化的 `getConfig()`。最终形态见 `server/config.js`（commit `fae0790`）。后续任务一律使用 `getConfig()` 取配置，不再各自 `loadConfig`。
 
-- [ ] **Step 4: 实装 `server/config.js`**
+- [x] **Step 4: 实装 `server/config.js`**
 
 ```js
 import { readFileSync } from 'node:fs';
@@ -203,7 +230,7 @@ export function loadConfig(path) {
 }
 ```
 
-- [ ] **Step 5: 运行测试确认通过**
+- [x] **Step 5: 运行测试确认通过**
 
 ```bash
 npm test
@@ -211,7 +238,7 @@ npm test
 
 Expected: PASS，8 tests
 
-- [ ] **Step 6: 创建 `.env.example`**
+- [x] **Step 6: 创建 `.env.example`**
 
 ```
 # os-tool-manager 配置。复制为 .env 后修改。
@@ -233,7 +260,7 @@ MAX_OUTPUT_BYTES=1048576
 AUTO_OPEN_BROWSER=true
 ```
 
-- [ ] **Step 7: 提交**
+- [x] **Step 7: 提交**
 
 ```bash
 git add package.json .env.example server/config.js test/config.test.js
@@ -248,7 +275,7 @@ git commit -m "feat: 项目骨架与配置模块（NFR-04～NFR-06）"
 - Create: `server/exec.js`
 - Test: `test/exec.test.js`
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 创建 `test/exec.test.js`：
 
@@ -313,7 +340,7 @@ test('run 输出超限时标示 truncated', async () => {
 });
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 ```bash
 node --test test/exec.test.js
@@ -323,7 +350,7 @@ Expected: FAIL，`Cannot find module '.../server/exec.js'`
 
 > **实装后的修订（代码评审 Critical 对应）**：本节代码为初版，存在超时机制失效的缺陷 —— 仅终止直接子进程时，孙进程继续持有管道导致 `close` 永不触发、Promise 永不 settle。最终形态见 `server/exec.js`（commit `8fc031d`）：子进程改为 `detached` 并终止整个进程组、追加宽限定时器、输出改为流式截断、`spawn` 错误透传真实 errno、校验 options、截断处对齐 UTF-8 边界、结果追加 `signal` 字段。测试由 8 件增至 20 件。
 
-- [ ] **Step 3: 实装 `server/exec.js`**
+- [x] **Step 3: 实装 `server/exec.js`**
 
 ```js
 import { spawn } from 'node:child_process';
@@ -397,7 +424,7 @@ export function run(command, args, { timeoutMs, maxBytes }) {
 }
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 ```bash
 node --test test/exec.test.js
@@ -405,7 +432,7 @@ node --test test/exec.test.js
 
 Expected: PASS，8 tests
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add server/exec.js test/exec.test.js
@@ -420,7 +447,7 @@ git commit -m "feat: 子进程执行模块（NFR-07～NFR-09、SEC-11）"
 - Create: `server/security.js`
 - Test: `test/security.test.js`
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 创建 `test/security.test.js`：
 
@@ -531,7 +558,7 @@ test('checkConfirm 确认标记非 true 时拒绝', () => {
 });
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 ```bash
 node --test test/security.test.js
@@ -539,7 +566,7 @@ node --test test/security.test.js
 
 Expected: FAIL，`Cannot find module '.../server/security.js'`
 
-- [ ] **Step 3: 实装 `server/security.js`**
+- [x] **Step 3: 实装 `server/security.js`**
 
 ```js
 import { randomBytes, timingSafeEqual } from 'node:crypto';
@@ -591,7 +618,7 @@ export function checkConfirm(action, body) {
 
 > `Object.hasOwn` 而非 `in`：后者会让 `constructor`、`toString` 等原型链上的键通过白名单校验。
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 ```bash
 node --test test/security.test.js
@@ -599,7 +626,7 @@ node --test test/security.test.js
 
 Expected: PASS，19 tests
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add server/security.js test/security.test.js
@@ -614,7 +641,7 @@ git commit -m "feat: 安全校验模块（SEC-02、SEC-04、SEC-06～SEC-10）"
 - Create: `server/routes.js`
 - Test: `test/routes.test.js`
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 创建 `test/routes.test.js`：
 
@@ -710,7 +737,7 @@ test('未知端点返回 404', async () => {
 });
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 ```bash
 node --test test/routes.test.js
@@ -718,7 +745,7 @@ node --test test/routes.test.js
 
 Expected: FAIL，`Cannot find module '.../server/routes.js'`
 
-- [ ] **Step 3: 实装 `server/routes.js`（仅生态清单）**
+- [x] **Step 3: 实装 `server/routes.js`（仅生态清单）**
 
 ```js
 import { checkToken } from './security.js';
@@ -780,7 +807,7 @@ export function createRouter({ adapters, token, origin }) {
 export { send };
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 ```bash
 node --test test/routes.test.js
@@ -788,7 +815,7 @@ node --test test/routes.test.js
 
 Expected: PASS，5 tests
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add server/routes.js test/routes.test.js
@@ -803,7 +830,7 @@ git commit -m "feat: API 路由 — 生态清单（FR-01～FR-03）"
 - Modify: `server/routes.js`
 - Modify: `test/routes.test.js`
 
-- [ ] **Step 1: 追加失败的测试**
+- [x] **Step 1: 追加失败的测试**
 
 在 `test/routes.test.js` 末尾追加：
 
@@ -841,7 +868,7 @@ test('GET items 其他异常时返回 500', async () => {
 });
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 ```bash
 node --test test/routes.test.js
@@ -849,7 +876,7 @@ node --test test/routes.test.js
 
 Expected: FAIL，4 tests failing（404 NOT_FOUND 而非期待值）
 
-- [ ] **Step 3: 在 `routes.js` 的 `return fail(res, 404, 'NOT_FOUND', ...)` 之前插入条目清单分支**
+- [x] **Step 3: 在 `routes.js` 的 `return fail(res, 404, 'NOT_FOUND', ...)` 之前插入条目清单分支**
 
 ```js
     const itemsMatch = pathname.match(/^\/api\/adapters\/([^/]+)\/items$/);
@@ -867,7 +894,7 @@ Expected: FAIL，4 tests failing（404 NOT_FOUND 而非期待值）
     }
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 ```bash
 node --test test/routes.test.js
@@ -875,7 +902,7 @@ node --test test/routes.test.js
 
 Expected: PASS，9 tests
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add server/routes.js test/routes.test.js
@@ -890,7 +917,7 @@ git commit -m "feat: API 路由 — 条目清单（FR-05～FR-08、SEC-09 前提
 - Modify: `server/routes.js`
 - Modify: `test/routes.test.js`
 
-- [ ] **Step 1: 追加失败的测试**
+- [x] **Step 1: 追加失败的测试**
 
 在 `test/routes.test.js` 末尾追加：
 
@@ -992,7 +1019,7 @@ test('POST action 失败时也解除排他（FR-19）', async () => {
 });
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 ```bash
 node --test test/routes.test.js
@@ -1000,13 +1027,13 @@ node --test test/routes.test.js
 
 Expected: FAIL，10 tests failing
 
-- [ ] **Step 3: 在 `routes.js` 顶部扩充 import**
+- [x] **Step 3: 在 `routes.js` 顶部扩充 import**
 
 ```js
 import { checkToken, checkOrigin, checkAction, checkItemId, checkConfirm } from './security.js';
 ```
 
-- [ ] **Step 4: 在 `routes.js` 中追加请求体读取函数（置于 `publicActions` 之后）**
+- [x] **Step 4: 在 `routes.js` 中追加请求体读取函数（置于 `publicActions` 之后）**
 
 ```js
 function readBody(req, limit = 64 * 1024) {
@@ -1036,7 +1063,7 @@ function readBody(req, limit = 64 * 1024) {
 }
 ```
 
-- [ ] **Step 5: 在 `return fail(res, 404, 'NOT_FOUND', ...)` 之前插入操作分支**
+- [x] **Step 5: 在 `return fail(res, 404, 'NOT_FOUND', ...)` 之前插入操作分支**
 
 ```js
     const actionMatch = pathname.match(/^\/api\/adapters\/([^/]+)\/actions\/([^/]+)$/);
@@ -1083,7 +1110,7 @@ function readBody(req, limit = 64 * 1024) {
     }
 ```
 
-- [ ] **Step 6: 运行全部测试确认通过**
+- [x] **Step 6: 运行全部测试确认通过**
 
 ```bash
 npm test
@@ -1091,7 +1118,7 @@ npm test
 
 Expected: PASS，全 103 tests（config 27 + exec 20 + security 25 + routes 24 + routes.integration 7）
 
-- [ ] **Step 7: 提交**
+- [x] **Step 7: 提交**
 
 ```bash
 git add server/routes.js test/routes.test.js
@@ -1109,7 +1136,7 @@ git commit -m "feat: API 路由 — 操作执行与排他控制（FR-14～FR-21�
 - Create: `web/index.html`（占位，Task 11 完成内容）
 - Test: `test/static.test.js`
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 创建 `test/static.test.js`：
 
@@ -1146,7 +1173,7 @@ test('拒绝非法的百分号编码', () => {
 });
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 ```bash
 node --test test/static.test.js
@@ -1154,7 +1181,7 @@ node --test test/static.test.js
 
 Expected: FAIL，`Cannot find module '.../server/static.js'`
 
-- [ ] **Step 3: 实装 `server/static.js`**
+- [x] **Step 3: 实装 `server/static.js`**
 
 ```js
 import { readFile } from 'node:fs/promises';
@@ -1199,7 +1226,7 @@ export function createStatic(rootDir) {
 }
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 ```bash
 node --test test/static.test.js
@@ -1207,7 +1234,7 @@ node --test test/static.test.js
 
 Expected: PASS，6 tests
 
-- [ ] **Step 5: 创建空的适配器注册表**
+- [x] **Step 5: 创建空的适配器注册表**
 
 创建 `server/adapters/registry.js`：
 
@@ -1215,7 +1242,7 @@ Expected: PASS，6 tests
 export const adapters = [];
 ```
 
-- [ ] **Step 6: 创建占位页面**
+- [x] **Step 6: 创建占位页面**
 
 创建 `web/index.html`：
 
@@ -1226,7 +1253,7 @@ export const adapters = [];
 <p>启动确认用占位页面。</p>
 ```
 
-- [ ] **Step 7: 实装 `server/index.js`**
+- [x] **Step 7: 实装 `server/index.js`**
 
 ```js
 import { createServer } from 'node:http';
@@ -1285,7 +1312,7 @@ server.listen(config.PORT, '127.0.0.1', () => {
 
 > `config` 传入 `createRouter` 供后续适配器使用超时配置。当前 `createRouter` 忽略该参数，Task 8 起使用。
 
-- [ ] **Step 8: 手动确认启动**
+- [x] **Step 8: 手动确认启动**
 
 ```bash
 npm start
@@ -1293,7 +1320,7 @@ npm start
 
 Expected: 打印 `os-tool-manager 已启动` 与含 token 的 URL，浏览器打开占位页面。确认后 `Ctrl+C` 停止。
 
-- [ ] **Step 9: 手动确认端口占用时的行为（NFR-14）**
+- [x] **Step 9: 手动确认端口占用时的行为（NFR-14）**
 
 在另一个终端保持 `npm start` 运行的状态下再次执行：
 
@@ -1303,7 +1330,7 @@ npm start
 
 Expected: 打印「端口 7788 已被占用。」与变更方法，退出码 1。
 
-- [ ] **Step 10: 提交**
+- [x] **Step 10: 提交**
 
 ```bash
 git add server/static.js server/index.js server/adapters/registry.js web/index.html test/static.test.js
@@ -1331,7 +1358,7 @@ git commit -m "feat: 静态资源与启动入口（SEC-01、SEC-03、SEC-05、NF
 
 `brew` 以命令名调用，不写绝对路径（NFR-12）。
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 创建 `test/homebrew.test.js`：
 
@@ -1421,7 +1448,7 @@ test('commandArgs 未知前缀时抛出', () => {
 });
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 ```bash
 node --test test/homebrew.test.js
@@ -1429,7 +1456,7 @@ node --test test/homebrew.test.js
 
 Expected: FAIL，`Cannot find module '.../server/adapters/homebrew.js'`
 
-- [ ] **Step 3: 实装 `server/adapters/homebrew.js`**
+- [x] **Step 3: 实装 `server/adapters/homebrew.js`**
 
 ```js
 import { run, ExecError } from '../exec.js';
@@ -1538,7 +1565,7 @@ export default {
 };
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 ```bash
 node --test test/homebrew.test.js
@@ -1546,7 +1573,7 @@ node --test test/homebrew.test.js
 
 Expected: PASS，14 tests
 
-- [ ] **Step 5: 注册适配器**
+- [x] **Step 5: 注册适配器**
 
 将 `server/adapters/registry.js` 全文替换为：
 
@@ -1556,7 +1583,7 @@ import homebrew from './homebrew.js';
 export const adapters = [homebrew];
 ```
 
-- [ ] **Step 6: 手动确认真实数据**
+- [x] **Step 6: 手动确认真实数据**
 
 ```bash
 node -e "import('./server/adapters/homebrew.js').then(async m => { const a = m.default; console.log('detect:', await a.detect()); const items = await a.list(); console.log('件数:', items.length); console.log('过时:', items.filter(i => i.status === 'outdated').length); console.log(items.slice(0, 3)); })"
@@ -1564,7 +1591,7 @@ node -e "import('./server/adapters/homebrew.js').then(async m => { const a = m.d
 
 Expected: `detect: true`，件数 43 前后，过时 26 前后（实机调查时点的值）
 
-- [ ] **Step 7: 提交**
+- [x] **Step 7: 提交**
 
 ```bash
 git add server/adapters/homebrew.js server/adapters/registry.js test/homebrew.test.js
@@ -1591,7 +1618,7 @@ git commit -m "feat: Homebrew 适配器（SC-01）"
 
 **重要：`npm outdated` 在存在过时包时退出码为 1。**不可将其视为失败，须只看 stdout。
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 创建 `test/npm.test.js`：
 
@@ -1655,7 +1682,7 @@ test('buildItems 对 npm 自身不提供卸载', () => {
 });
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 ```bash
 node --test test/npm.test.js
@@ -1663,7 +1690,7 @@ node --test test/npm.test.js
 
 Expected: FAIL，`Cannot find module '.../server/adapters/npm.js'`
 
-- [ ] **Step 3: 实装 `server/adapters/npm.js`**
+- [x] **Step 3: 实装 `server/adapters/npm.js`**
 
 ```js
 import { run } from '../exec.js';
@@ -1759,7 +1786,7 @@ export default {
 };
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 ```bash
 node --test test/npm.test.js
@@ -1767,7 +1794,7 @@ node --test test/npm.test.js
 
 Expected: PASS，10 tests
 
-- [ ] **Step 5: 注册适配器**
+- [x] **Step 5: 注册适配器**
 
 将 `server/adapters/registry.js` 全文替换为：
 
@@ -1778,7 +1805,7 @@ import npm from './npm.js';
 export const adapters = [homebrew, npm];
 ```
 
-- [ ] **Step 6: 手动确认真实数据**
+- [x] **Step 6: 手动确认真实数据**
 
 ```bash
 node -e "import('./server/adapters/npm.js').then(async m => { const a = m.default; console.log('detect:', await a.detect()); console.log(await a.list()); })"
@@ -1786,7 +1813,7 @@ node -e "import('./server/adapters/npm.js').then(async m => { const a = m.defaul
 
 Expected: `detect: true`，包含 `npm`、`@deepseek-ai/dsh`、`@fission-ai/openspec` 三件
 
-- [ ] **Step 7: 提交**
+- [x] **Step 7: 提交**
 
 ```bash
 git add server/adapters/npm.js server/adapters/registry.js test/npm.test.js
@@ -1815,7 +1842,7 @@ git commit -m "feat: npm 全局包适配器（SC-02）"
 
 **性能上的注意：**本机 pip 用户级包约 180 件，`--outdated` 需对全部包查询 PyPI，可能超过 `LIST_TIMEOUT_MS` 的 60 秒。Task 12 中实测，若超时则将 `.env` 的 `LIST_TIMEOUT_MS` 调大至 180000。
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 创建 `test/pip.test.js`：
 
@@ -1874,7 +1901,7 @@ test('buildItems 按名称排序', () => {
 });
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 ```bash
 node --test test/pip.test.js
@@ -1882,7 +1909,7 @@ node --test test/pip.test.js
 
 Expected: FAIL，`Cannot find module '.../server/adapters/pip.js'`
 
-- [ ] **Step 3: 实装 `server/adapters/pip.js`**
+- [x] **Step 3: 实装 `server/adapters/pip.js`**
 
 ```js
 import { run } from '../exec.js';
@@ -1973,7 +2000,7 @@ export default {
 };
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 ```bash
 node --test test/pip.test.js
@@ -1981,7 +2008,7 @@ node --test test/pip.test.js
 
 Expected: PASS，9 tests
 
-- [ ] **Step 5: 注册适配器**
+- [x] **Step 5: 注册适配器**
 
 将 `server/adapters/registry.js` 全文替换为：
 
@@ -1993,7 +2020,7 @@ import pip from './pip.js';
 export const adapters = [homebrew, npm, pip];
 ```
 
-- [ ] **Step 6: 实测 `--outdated` 的所要时间**
+- [x] **Step 6: 实测 `--outdated` 的所要时间**
 
 ```bash
 time python3 -m pip list --user --outdated --format=json > /dev/null
@@ -2001,7 +2028,7 @@ time python3 -m pip list --user --outdated --format=json > /dev/null
 
 Expected: 输出所要时间。若超过 55 秒，则在 `.env` 中设置 `LIST_TIMEOUT_MS=180000`（`.env` 不存在时从 `.env.example` 复制）。
 
-- [ ] **Step 7: 手动确认真实数据**
+- [x] **Step 7: 手动确认真实数据**
 
 ```bash
 node -e "import('./server/adapters/pip.js').then(async m => { const a = m.default; console.log('detect:', await a.detect()); const items = await a.list(); console.log('件数:', items.length); console.log('过时:', items.filter(i => i.status === 'outdated').length); })"
@@ -2009,7 +2036,7 @@ node -e "import('./server/adapters/pip.js').then(async m => { const a = m.defaul
 
 Expected: `detect: true`，件数 180 前后
 
-- [ ] **Step 8: 提交**
+- [x] **Step 8: 提交**
 
 ```bash
 git add server/adapters/pip.js server/adapters/registry.js test/pip.test.js
@@ -2025,7 +2052,7 @@ git commit -m "feat: pip 用户级包适配器（SC-03）"
 - Create: `web/style.css`
 - Create: `web/app.js`
 
-- [ ] **Step 1: 实装 `web/index.html`**
+- [x] **Step 1: 实装 `web/index.html`**
 
 全文替换为：
 
@@ -2063,7 +2090,7 @@ git commit -m "feat: pip 用户级包适配器（SC-03）"
 </html>
 ```
 
-- [ ] **Step 2: 实装 `web/style.css`**
+- [x] **Step 2: 实装 `web/style.css`**
 
 ```css
 :root {
@@ -2121,7 +2148,7 @@ dialog menu { display: flex; gap: 8px; justify-content: flex-end; padding: 0; ma
 #output-body { max-height: 55vh; overflow: auto; white-space: pre-wrap; word-break: break-all; font-size: 12px; background: var(--surface); padding: 12px; border-radius: 6px; }
 ```
 
-- [ ] **Step 3: 实装 `web/app.js`**
+- [x] **Step 3: 实装 `web/app.js`**
 
 ```js
 // 令牌取得后立即从地址栏移除（SEC-13）
@@ -2308,7 +2335,7 @@ async function main() {
 main();
 ```
 
-- [ ] **Step 4: 启动并目视确认**
+- [x] **Step 4: 启动并目视确认**
 
 ```bash
 npm start
@@ -2316,7 +2343,7 @@ npm start
 
 Expected: 三张卡片（Homebrew、npm 全局包、pip 用户级包）显示。Homebrew 与 pip 取得中时 npm 卡片已完成显示。确认后 `Ctrl+C`。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add web/index.html web/style.css web/app.js
@@ -2331,7 +2358,7 @@ git commit -m "feat: 前端（FR-04～FR-21、SEC-13）"
 - Modify: `README.md`
 - Create: `docs/reviews/2026-09-20-manual-verification.md`
 
-- [ ] **Step 1: 执行全部自动测试**
+- [x] **Step 1: 执行全部自动测试**
 
 ```bash
 npm test
@@ -2339,7 +2366,7 @@ npm test
 
 Expected: PASS，全 142 tests（config 27 + exec 20 + security 25 + routes 24 + routes.integration 7 + static 6 + homebrew 14 + npm 10 + pip 9）
 
-- [ ] **Step 2: 依要件书 9.3 节执行手动验证**
+- [x] **Step 2: 依要件书 9.3 节执行手动验证**
 
 逐项确认，记录结果：
 
@@ -2356,7 +2383,7 @@ Expected: PASS，全 142 tests（config 27 + exec 20 + security 25 + routes 24 +
 | 9 | 令牌无效时 API 返回 401 | SEC-06 | 见 Step 4 |
 | 10 | Origin 不正时 POST 返回 403 | SEC-07 | 见 Step 5 |
 
-- [ ] **Step 3: 确认操作失败时的显示（FR-21）**
+- [x] **Step 3: 确认操作失败时的显示（FR-21）**
 
 服务启动的状态下，在浏览器开发者工具的 Console 中执行（`<TOKEN>` 替换为启动时打印的令牌）：
 
@@ -2370,7 +2397,7 @@ await fetch('/api/adapters/npm/actions/update', {
 
 先点一次 npm 卡片的刷新（使服务端持有条目清单），然后在界面上对一个不存在的包执行更新以确认失败输出。最简便的做法：暂时断网后点击任意「更新」，确认错误输出全文显示于对话框。
 
-- [ ] **Step 4: 确认令牌校验（SEC-06）**
+- [x] **Step 4: 确认令牌校验（SEC-06）**
 
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:7788/api/adapters
@@ -2379,7 +2406,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -H 'x-token: wrong' http://127.0.0.1:77
 
 Expected: 两次均为 `401`
 
-- [ ] **Step 5: 确认 Origin 校验（SEC-07）**
+- [x] **Step 5: 确认 Origin 校验（SEC-07）**
 
 `<TOKEN>` 替换为启动时打印的令牌：
 
@@ -2389,7 +2416,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST -H 'x-token: <TOKEN>' -H 'conte
 
 Expected: `403`（`Origin` 缺失）
 
-- [ ] **Step 6: 确认仅绑定回环地址（SEC-01）**
+- [x] **Step 6: 确认仅绑定回环地址（SEC-01）**
 
 ```bash
 lsof -nP -iTCP:7788 -sTCP:LISTEN
@@ -2397,11 +2424,11 @@ lsof -nP -iTCP:7788 -sTCP:LISTEN
 
 Expected: 地址列为 `127.0.0.1:7788`，**不得**为 `*:7788`
 
-- [ ] **Step 7: 记录验证结果**
+- [x] **Step 7: 记录验证结果**
 
 创建 `docs/reviews/2026-09-20-manual-verification.md`，记录 Step 2 的表格与各项的实测结果（通过 / 失败 / 备注）。失败项在本任务内修正后重新验证。
 
-- [ ] **Step 8: 更新 `README.md`**
+- [x] **Step 8: 更新 `README.md`**
 
 全文替换为：
 
@@ -2458,7 +2485,7 @@ npm test
 - 审查报告：`docs/reviews/`
 ```
 
-- [ ] **Step 9: 提交**
+- [x] **Step 9: 提交**
 
 ```bash
 git add README.md docs/reviews/2026-09-20-manual-verification.md

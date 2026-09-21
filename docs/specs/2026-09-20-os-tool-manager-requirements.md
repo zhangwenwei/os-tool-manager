@@ -3,11 +3,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档名 | os-tool-manager 要件定义书 |
-| 版本 | 3.0 |
+| 版本 | 3.1 |
 | 制定日 | 2026-09-20 |
 | 状态 | 已确认 |
 | 要件记法 | EARS (Easy Approach to Requirements Syntax) |
-| 下一阶段 | 仕样书（详细设计） |
+| 下一阶段 | 实装计划（已完成） |
 
 ### 修订履历
 
@@ -16,6 +16,7 @@
 | 1.0 | 2026-09-20 | 初版 |
 | 2.0 | 2026-09-20 | 要件记法改为 EARS |
 | 3.0 | 2026-09-20 | 依据实机调查结果变更对象范围（SC-02、SC-03）；依据一致性审查报告修正矛盾、补全第 7 章数据契约 |
+| 3.1 | 2026-09-21 | 首页「下一阶段」栏改为实装计划（本项目未写仕样书）；6.2 节目录构成与 6.3 节模块边界同步至实装；补记代码评审报告（`docs/reviews/2026-09-20-code-review.md`） |
 
 > v3.0 的依据：实机调查（未安装 nvm / pyenv，brew 前缀为 `/usr/local`）与一致性审查报告 `docs/reviews/2026-09-20-requirements-consistency-review.md`（32 件指摘）。
 
@@ -281,9 +282,12 @@ os-tool-manager/
 │   ├── security.js        令牌校验、Origin 校验、白名单校验
 │   ├── routes.js          统一 API 路由（不含生态知识）
 │   ├── static.js          静态资源提供（SEC-05）
+│   ├── app.js             请求分发与启动错误处理（NFR-13、NFR-14）
 │   ├── exec.js            子进程执行封装：超时、输出截断、错误归一化
 │   └── adapters/
+│       ├── base.js        适配器共通基础：错误型、超时与输出预算、输出守卫
 │       ├── registry.js    适配器注册表
+│       ├── descriptions.js 中文简介词典（FR-24）
 │       ├── homebrew.js    SC-01
 │       ├── npm.js         SC-02
 │       └── pip.js         SC-03
@@ -292,8 +296,10 @@ os-tool-manager/
 │   ├── app.js             渲染统一结构（不含生态知识）
 │   └── style.css
 ├── test/                  node:test 测试（第 9 章）
+│   └── fixtures/          真实命令输出的样本（第 9.1 节的解析函数测试用）
 ├── docs/
-│   ├── specs/             要件定义书・仕様书
+│   ├── specs/             要件定义书
+│   ├── plans/             实装计划
 │   └── reviews/           审查报告
 ├── .env.example           配置项样例（版本控制对象）
 └── .env                   机器固有配置（版本控制对象外）
@@ -310,6 +316,7 @@ os-tool-manager/
 | `adapters/*` | 封装单一生态的全部知识 | 不得直接操作 HTTP | NFR-11、NFR-12 |
 | `exec.js` | 子进程执行 | 不得含业务判断 | NFR-07～NFR-09、SEC-11 |
 | `security.js` | 安全校验 | 不得含业务判断 | SEC-04、SEC-06～SEC-10 |
+| `app.js` | 请求分发、启动错误的处理 | 不得含业务判断 | NFR-13、NFR-14 |
 
 ---
 

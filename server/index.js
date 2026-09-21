@@ -15,9 +15,14 @@ const root = join(here, '..');
 const config = getConfig();
 const token = generateToken();
 const baseUrl = `http://127.0.0.1:${config.PORT}`;
-// localhost 是浏览器保留名，必定解析到回环地址；跨站攻击者的 Origin 会是其自身域名，
-// 不会是 localhost。故同时允许这两者不削弱 SEC-07 的防护，而能避免使用者手输
-// localhost 时所有操作都 403 却得不到解释。
+// Origin 由浏览器按发起文档的源填写，而源由 scheme / host / port 三者决定。
+// 跨站攻击者的文档源是其自身域名，无法取得源为 http://localhost:<PORT> 的文档；
+// DNS rebinding 也不行 —— 即使 evil.com 重绑至回环地址，文档的源仍是 http://evil.com。
+// 攻击者若在本机自跑服务，其端口必然不同，而端口精确参与比较。故同时允许这两者
+// 不削弱 SEC-07 的防护，而能避免使用者手输 localhost 时所有操作都 403 却得不到解释。
+//
+// 本项防护成立的前提是比较为精确字符串相等。任何退化为子串匹配或前缀匹配的实装
+// 都会直接推翻上述论证，故 checkOrigin 须校验白名单为数组。
 const allowedOrigins = [baseUrl, `http://localhost:${config.PORT}`];
 
 const server = createServer(
