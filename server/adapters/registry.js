@@ -1,5 +1,5 @@
 import homebrew from './homebrew.js';
 import npm from './npm.js';
-import pip from './pip.js';
+import uv from './uv.js';
 
-export const adapters = [homebrew, npm, pip];
+export const adapters = [homebrew, npm, uv];

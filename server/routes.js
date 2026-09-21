@@ -117,7 +117,15 @@ export function createRouter({ adapters, token, allowedOrigins }) {
           } catch {
             return null;
           }
-          return available ? { id: a.id, label: a.label, actions: publicActions(a) } : null;
+          if (!available) return null;
+          // location 取不到不应让整个生态消失，降级为 null
+          let location = null;
+          try {
+            location = typeof a.location === 'function' ? await a.location() : null;
+          } catch {
+            location = null;
+          }
+          return { id: a.id, label: a.label, location, actions: publicActions(a) };
         })
       );
       return send(res, 200, { adapters: results.filter(Boolean) });

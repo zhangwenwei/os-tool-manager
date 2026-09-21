@@ -88,6 +88,15 @@ export default {
     }
   },
 
+  async location() {
+    try {
+      const r = await run('brew', ['--prefix'], { timeoutMs: DETECT_TIMEOUT_MS, maxBytes: 4096 });
+      return r.ok ? r.stdout.trim() || null : null;
+    } catch {
+      return null;
+    }
+  },
+
   async list() {
     return buildList({ info: await run('brew', ['info', '--json=v2', '--installed'], listOpts()) });
   },

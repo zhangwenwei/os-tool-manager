@@ -65,6 +65,12 @@ class Card {
     head.className = 'card-head';
     const title = document.createElement('h2');
     title.textContent = adapter.label;
+    if (adapter.location) {
+      const where = document.createElement('span');
+      where.className = 'location';
+      where.textContent = adapter.location;
+      title.append(where);
+    }
     this.countEl = document.createElement('span');
     this.countEl.className = 'count';
     this.refreshBtn = document.createElement('button');

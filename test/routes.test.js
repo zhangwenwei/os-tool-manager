@@ -55,7 +55,7 @@ test('GET /api/adapters 返回可用生态', async () => {
   const res = await call(router, '/api/adapters');
   assert.equal(res.statusCode, 200);
   assert.deepEqual(res.body.adapters, [
-    { id: 'fake', label: 'Fake', actions: { update: { label: '更新', destructive: false }, uninstall: { label: '卸载', destructive: true } } },
+    { id: 'fake', label: 'Fake', location: null, actions: { update: { label: '更新', destructive: false }, uninstall: { label: '卸载', destructive: true } } },
   ]);
 });
 
@@ -350,4 +350,27 @@ test('操作缺少 run 时抛出', async () => {
   };
   const router = createRouter({ adapters: [broken], token: TOKEN, allowedOrigins: [ORIGIN] });
   await assert.rejects(() => call(router, '/api/adapters'), (e) => e.message.includes('norun'));
+});
+
+test('生态清单返回适配器的管理位置（FR-26）', async () => {
+  const adapter = fakeAdapter({ location: async () => '/usr/local' });
+  const router = createRouter({ adapters: [adapter], token: TOKEN, allowedOrigins: [ORIGIN] });
+  const res = await call(router, '/api/adapters');
+  assert.equal(res.body.adapters[0].location, '/usr/local');
+});
+
+test('location 抛出时降级为 null，不影响该生态显示', async () => {
+  const adapter = fakeAdapter({ location: async () => { throw new Error('炸了'); } });
+  const router = createRouter({ adapters: [adapter], token: TOKEN, allowedOrigins: [ORIGIN] });
+  const res = await call(router, '/api/adapters');
+  assert.equal(res.body.adapters.length, 1);
+  assert.equal(res.body.adapters[0].location, null);
+});
+
+test('适配器未实装 location 时为 null', async () => {
+  const adapter = fakeAdapter();
+  delete adapter.location;
+  const router = createRouter({ adapters: [adapter], token: TOKEN, allowedOrigins: [ORIGIN] });
+  const res = await call(router, '/api/adapters');
+  assert.equal(res.body.adapters[0].location, null);
 });

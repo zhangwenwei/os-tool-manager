@@ -96,6 +96,15 @@ export default {
     }
   },
 
+  async location() {
+    try {
+      const r = await run('npm', ['prefix', '-g'], { timeoutMs: DETECT_TIMEOUT_MS, maxBytes: 4096 });
+      return r.ok ? r.stdout.trim() || null : null;
+    } catch {
+      return null;
+    }
+  },
+
   async list() {
     const [list, outdated] = await Promise.all([
       run('npm', LIST_ARGS, listOpts()),

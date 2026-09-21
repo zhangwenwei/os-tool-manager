@@ -1,6 +1,0 @@
-[
-  { "name": "numpy", "version": "1.26.4" },
-  { "name": "requests", "version": "2.32.5" },
-  { "name": "zstandard", "version": "0.25.0" },
-  { "name": "attrs", "version": "26.1.0" }
-]

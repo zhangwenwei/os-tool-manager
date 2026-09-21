@@ -47,6 +47,8 @@ const ZH = {
 
   'npm/@deepseek-ai/dsh': 'DeepSeek 的命令行工具',
   'npm/@fission-ai/openspec': '以规格驱动开发的 AI 工具',
+
+  'uv/cpython-3.11.16-macos-x86_64-none': 'uv 安装的 CPython 3.11 运行时',
 };
 
 export function describe(adapterId, itemId, fallback = null) {

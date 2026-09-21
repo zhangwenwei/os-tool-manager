@@ -1,0 +1,29 @@
+[
+  {
+    "key": "cpython-3.11.16-macos-x86_64-none",
+    "version": "3.11.16",
+    "version_parts": { "major": 3, "minor": 11, "patch": 16 },
+    "path": "/Users/u/.local/bin/python3.11",
+    "symlink": "/Users/u/.local/share/uv/python/cpython-3.11-macos-x86_64-none/bin/python3.11",
+    "url": null, "os": "macos", "variant": "default",
+    "implementation": "cpython", "arch": "x86_64", "libc": "none"
+  },
+  {
+    "key": "cpython-3.11.16-macos-x86_64-none",
+    "version": "3.11.16",
+    "version_parts": { "major": 3, "minor": 11, "patch": 16 },
+    "path": "/Users/u/.local/share/uv/python/cpython-3.11-macos-x86_64-none/bin/python3.11",
+    "symlink": null,
+    "url": null, "os": "macos", "variant": "default",
+    "implementation": "cpython", "arch": "x86_64", "libc": "none"
+  },
+  {
+    "key": "cpython-3.9.6-macos-x86_64-none",
+    "version": "3.9.6",
+    "version_parts": { "major": 3, "minor": 9, "patch": 6 },
+    "path": "/usr/bin/python3",
+    "symlink": null,
+    "url": null, "os": "macos", "variant": "default",
+    "implementation": "cpython", "arch": "x86_64", "libc": "none"
+  }
+]
