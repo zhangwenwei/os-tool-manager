@@ -1,5 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { adapters } from '../server/adapters/registry.js';
 
 test('注册表非空', () => {
@@ -52,3 +55,23 @@ for (const adapter of adapters) {
     assert.equal(typeof adapter.location, 'function');
   });
 }
+
+// NFR-12：位置须由工具自身动态取得，不得硬编码。PATH 上放替身命令，让它打印一个
+// 不可能被硬编码的哨兵路径；location() 必须原样返回它。替身不执行任何真正的命令。
+test('各适配器的 location() 由工具动态取得，不硬编码（NFR-12）', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'loc-stub-'));
+  for (const cmd of ['brew', 'npm', 'uv']) {
+    writeFileSync(join(dir, cmd), `#!/bin/sh\necho /sentinel/${cmd}\n`, { mode: 0o755 });
+  }
+  const savedPath = process.env.PATH;
+  process.env.PATH = `${dir}:${savedPath}`;
+  try {
+    for (const adapter of adapters) {
+      const loc = await adapter.location();
+      assert.match(String(loc), /^\/sentinel\//, `${adapter.id}.location() 返回 ${loc}，疑似硬编码`);
+    }
+  } finally {
+    process.env.PATH = savedPath;
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
