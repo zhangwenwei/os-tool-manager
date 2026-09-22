@@ -1,5 +1,5 @@
 import { run } from '../exec.js';
-import { AdapterError, listOpts, actionOpts, assertNotTruncated, assertOk } from './base.js';
+import { AdapterError, listOpts, actionOpts, assertNotTruncated, assertOk, probeLine } from './base.js';
 import { describe } from './descriptions.js';
 
 const DETECT_TIMEOUT_MS = 5000;
@@ -89,12 +89,7 @@ export default {
   },
 
   async location() {
-    try {
-      const r = await run('brew', ['--prefix'], { timeoutMs: DETECT_TIMEOUT_MS, maxBytes: 4096 });
-      return r.ok ? r.stdout.trim() || null : null;
-    } catch {
-      return null;
-    }
+    return probeLine('brew', ['--prefix']);
   },
 
   async list() {

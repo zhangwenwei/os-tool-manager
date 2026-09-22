@@ -1,5 +1,5 @@
 import { run } from '../exec.js';
-import { AdapterError, listOpts, actionOpts, assertNotTruncated, assertOk } from './base.js';
+import { AdapterError, listOpts, actionOpts, assertNotTruncated, assertOk, probeLine } from './base.js';
 import { describe } from './descriptions.js';
 
 const DETECT_TIMEOUT_MS = 10000;
@@ -21,8 +21,12 @@ function parseJson(stdout, what) {
 }
 
 function isManagedBy(entry, pythonDir) {
-  if (!pythonDir) return false;
-  return [entry?.path, entry?.symlink].some((p) => typeof p === 'string' && p.startsWith(pythonDir));
+  // 类型检查不可省：pythonDir 为 [] 时 !pythonDir 为 false，而 startsWith([]) 恒为 true，
+  // 会把系统 Python 一并放行。
+  if (typeof pythonDir !== 'string' || pythonDir === '') return false;
+  // 补上分隔符，避免 .../uv/python-evil 被当作 .../uv/python 的子路径。
+  const prefix = pythonDir.endsWith('/') ? pythonDir : `${pythonDir}/`;
+  return [entry?.path, entry?.symlink].some((p) => typeof p === 'string' && p.startsWith(prefix));
 }
 
 // 同一个 Python 会有多条记录（符号链接与真实路径各一条），按 key 去重。
@@ -39,23 +43,46 @@ export function parseInstalled(stdout, pythonDir) {
   return [...byKey.values()];
 }
 
-// uv python upgrade 只在小版本线内升级，故最新版本取同 major.minor 的最大值。
-export function latestInLine(available, major, minor) {
-  const same = available
-    .filter((e) => e?.version_parts?.major === major && e?.version_parts?.minor === minor)
-    .map((e) => e.version_parts.patch)
-    .filter((p) => Number.isInteger(p));
-  return same.length ? `${major}.${minor}.${Math.max(...same)}` : null;
+const IS_PRERELEASE = /[a-zA-Z]/;
+
+// uv python upgrade 只在小版本线内升级，故最新版本取「同实现 + 同变体 + 同 major.minor」
+// 内的最大补丁号。不得由 version_parts 拼字符串 —— 预发布版的 version 是 "3.15.0rc2"
+// 而 patch 是 0，拼出的 "3.15.0" 在目录中并不存在，会使该条目永久显示有更新。
+// 故返回候选条目真实的 version 字段。
+export function latestInLine(available, entry) {
+  const vp = entry?.version_parts ?? {};
+  const candidates = available.filter(
+    (e) =>
+      e?.implementation === entry?.implementation
+      && e?.variant === entry?.variant
+      && e?.version_parts?.major === vp.major
+      && e?.version_parts?.minor === vp.minor
+      && Number.isInteger(e?.version_parts?.patch)
+      && typeof e?.version === 'string'
+  );
+  if (!candidates.length) return null;
+  candidates.sort(
+    (a, b) =>
+      b.version_parts.patch - a.version_parts.patch
+      || IS_PRERELEASE.test(a.version) - IS_PRERELEASE.test(b.version)
+  );
+  return candidates[0].version;
 }
 
 export function buildItems(installed, availableStdout) {
-  const available = availableStdout === null ? [] : parseJson(availableStdout, 'uv python list');
+  // 可下载清单是辅助信息：解析不了就当作空，让 latest 为 null、状态为 unknown，
+  // 而不是让整张卡片报错。已装清单才是主体，它的解析失败仍会抛出。
+  let available = [];
+  if (availableStdout !== null) {
+    try {
+      available = parseJson(availableStdout, 'uv python list');
+    } catch {
+      available = [];
+    }
+  }
   return installed
     .map((entry) => {
-      const { major, minor } = entry.version_parts ?? {};
-      const latest = Number.isInteger(major) && Number.isInteger(minor)
-        ? latestInLine(available, major, minor)
-        : null;
+      const latest = latestInLine(available, entry);
       const current = entry.version;
       const unknown = latest == null;
       const name = `${entry.implementation ?? 'python'} ${current}`;
@@ -105,12 +132,7 @@ export default {
   },
 
   async location() {
-    try {
-      const r = await run('uv', ['python', 'dir'], { timeoutMs: DETECT_TIMEOUT_MS, maxBytes: 4096 });
-      return r.ok ? r.stdout.trim() || null : null;
-    } catch {
-      return null;
-    }
+    return probeLine('uv', ['python', 'dir']);
   },
 
   async list() {

@@ -1,4 +1,5 @@
 import { getConfig } from '../config.js';
+import { run } from '../exec.js';
 
 export class AdapterError extends Error {
   constructor(code, message, detail = null) {
@@ -31,5 +32,17 @@ export function assertNotTruncated(result, what) {
 export function assertOk(result, what) {
   if (!result.ok) {
     throw new AdapterError('LIST_FAILED', result.stderr.trim() || `${what} 以退出码 ${result.exitCode} 结束。`);
+  }
+}
+
+const PROBE_TIMEOUT_MS = 10000;
+
+// 探测类命令：取单行输出。失败一律降级为 null —— 位置取不到不应让整个生态消失。
+export async function probeLine(command, args) {
+  try {
+    const r = await run(command, args, { timeoutMs: PROBE_TIMEOUT_MS, maxBytes: 4096 });
+    return r.ok ? r.stdout.trim() || null : null;
+  } catch {
+    return null;
   }
 }

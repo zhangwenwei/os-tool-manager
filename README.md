@@ -1,6 +1,6 @@
 # os-tool-manager
 
-macOS 上的本地工具管理面板。在浏览器里查看和管理 Homebrew 包、npm 全局包、pip 用户级包 —— 装了什么、版本多少、哪些该更新，以及一键更新和卸载。
+macOS 上的本地工具管理面板。在浏览器里查看和管理 Homebrew 包、npm 全局包、uv 管理的 Python —— 装了什么、版本多少、哪些该更新，以及一键更新和卸载。
 
 零运行时依赖：只用 Node.js 标准库和原生前端，`git clone` 完不需要 `npm install` 就能跑。
 
@@ -35,7 +35,7 @@ npm start
 |---|---|---|
 | Homebrew | formula 与 cask | 更新、卸载 |
 | npm | 全局安装的包 | 更新、卸载 |
-| pip | 系统 Python 的 `--user` 包 | 更新、卸载 |
+| uv | 安装的 Python 版本 | 更新、卸载 |
 
 未安装的生态不会显示，不视为错误 —— 多台机器环境本就不一致。
 
@@ -83,7 +83,7 @@ server/
     ├── registry.js
     ├── homebrew.js
     ├── npm.js
-    └── pip.js
+    └── uv.js
 web/               界面（原生 HTML/CSS/JS）
 ```
 
@@ -98,6 +98,7 @@ export default {
   id: 'docker',
   label: 'Docker 容器',
   detect: async () => { /* 本机是否可用 */ },
+  location: async () => { /* 管理对象所在的位置，须动态取得 */ },
   list: async () => { /* → Item[] */ },
   actions: {
     restart: { label: '重启', destructive: false, run: (item) => { /* ... */ } },
@@ -116,7 +117,7 @@ export default {
 npm test
 ```
 
-219 个测试，用 Node 内置的 `node:test`。覆盖解析函数、安全校验、子进程执行、路由契约与错误分流。真正会改变系统的命令不做自动测试，以手动验证替代（见 `docs/reviews/`）。
+240 个测试，用 Node 内置的 `node:test`。覆盖解析函数、安全校验、子进程执行、路由契约与错误分流。真正会改变系统的命令不做自动测试，以手动验证替代（见 `docs/reviews/`）。
 
 ## 文档
 
@@ -132,7 +133,7 @@ npm test
 
 - 只在 Intel Mac 上验证过。Apple Silicon 理论上可用（不硬编码 brew 路径），但未实测
 - `brew outdated` 默认跳过带 `auto_updates` 的 cask，本项目改用已装版本与上游版本直接比较来绕开
-- pip 适配器只管 `--user` 范围的包，不碰系统级包
+- uv 适配器只管 uv 安装的 Python 版本，不管 uv tool 安装的命令行工具（无机器可读输出格式）
 
 ## 许可证
 

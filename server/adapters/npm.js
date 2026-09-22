@@ -1,5 +1,5 @@
 import { run } from '../exec.js';
-import { AdapterError, listOpts, actionOpts, assertNotTruncated } from './base.js';
+import { AdapterError, listOpts, actionOpts, assertNotTruncated, probeLine } from './base.js';
 import { describe } from './descriptions.js';
 
 const DETECT_TIMEOUT_MS = 10000;
@@ -97,12 +97,7 @@ export default {
   },
 
   async location() {
-    try {
-      const r = await run('npm', ['prefix', '-g'], { timeoutMs: DETECT_TIMEOUT_MS, maxBytes: 4096 });
-      return r.ok ? r.stdout.trim() || null : null;
-    } catch {
-      return null;
-    }
+    return probeLine('npm', ['prefix', '-g']);
   },
 
   async list() {

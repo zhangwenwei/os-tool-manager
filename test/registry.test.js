@@ -29,3 +29,26 @@ for (const adapter of adapters) {
     }
   });
 }
+
+// 破坏性标记决定前端是否弹二次确认。标错即意味着卸载不经确认就执行。
+const DESTRUCTIVE_BY_KEY = {
+  update: false,
+  upgrade: false,
+  uninstall: true,
+  remove: true,
+  rm: true,
+};
+
+for (const adapter of adapters) {
+  test(`适配器 ${adapter.id} 的破坏性标记符合约定`, () => {
+    for (const [key, action] of Object.entries(adapter.actions)) {
+      const expected = DESTRUCTIVE_BY_KEY[key];
+      assert.notEqual(expected, undefined, `${adapter.id}.${key} 未在破坏性约定表中，请先补入`);
+      assert.equal(action.destructive, expected, `${adapter.id}.${key} 的 destructive 应为 ${expected}`);
+    }
+  });
+
+  test(`适配器 ${adapter.id} 实装了要件书 7.1 节的 location()`, () => {
+    assert.equal(typeof adapter.location, 'function');
+  });
+}
